@@ -33,31 +33,45 @@ test('bot draait tegen de feed, boekhouding klopt, staat overleeft herstart', { 
   await sleep(45_000);
 
   const c = engine.c;
+  assert.equal(engine.strategies.length, 4, 'vier strategieën');
   assert.ok(c.newPairs > 30, `newPairs ${c.newPairs}`);
   assert.ok(c.trades > 500, `trades ${c.trades}`);
-  assert.ok(c.scanRejected + c.botRejected > 0, 'filters moeten iets weigeren');
-  assert.ok(c.buys > 0, `buys ${c.buys}`);
+  const sum = k => engine.strategies.reduce((a, s) => a + s.c[k], 0);
+  assert.ok(c.scanRejected + sum('botRejected') > 0, 'filters moeten iets weigeren');
+  assert.ok(sum('buys') > 0, `buys ${sum('buys')}`);
+  const perStrat = engine.strategies.map(s => s.c.buys);
+  assert.ok(perStrat.filter(n => n > 0).length >= 2, `meerdere strategieën handelen: ${perStrat}`);
   assert.equal(rep.ring.filter(e => /Interne fout|Onverwachte/.test(e.text)).length, 0);
 
-  // boekhouding: cash = start + Σ gesloten P/L − Σ inleg open − gefaalde tx-kosten + Σ deelverkopen open
-  const P = engine.portfolio;
-  const closedPnl = P.closed.reduce((s, c) => s + c.pnlSol, 0);
-  const open = [...P.positions.values()];
-  const expected = P.startBalance + closedPnl - open.reduce((s, p) => s + p.costSol, 0) + open.reduce((s, p) => s + p.realizedSol, 0) - P.failedTxCost;
-  assert.ok(Math.abs(P.cash - expected) < 1e-9, `cash ${P.cash} ≠ ${expected}`);
+  // boekhouding per strategie: cash = start + Σ gesloten P/L − Σ inleg open + Σ deelverkopen open − gefaalde tx-kosten
+  for (const s of engine.strategies) {
+    const P = s.portfolio;
+    const closedPnl = P.closed.reduce((a, c) => a + c.pnlSol, 0);
+    const open = [...P.positions.values()];
+    const expected = P.startBalance + closedPnl - open.reduce((a, p) => a + p.costSol, 0) + open.reduce((a, p) => a + p.realizedSol, 0) - P.failedTxCost;
+    assert.ok(Math.abs(P.cash - expected) < 1e-9, `${s.id}: cash ${P.cash} ≠ ${expected}`);
+  }
 
-  const snap = engine.snapshot();
-  assert.ok(snap.equity > 0 && JSON.stringify(snap).length > 100);
+  for (const s of engine.strategies) {
+    const snap = engine.snapshot(s.id);
+    assert.equal(snap.selected, s.id);
+    assert.equal(snap.strategies.length, 4);
+    assert.ok(snap.equity > 0);
+  }
 
-  // herstart
+  // herstart: elke strategie houdt zijn eigen staat
   await sleep(200);
-  const before = { cash: P.cash, open: P.positions.size, closed: P.closed.length };
+  const before = engine.strategies.map(s => ({ cash: s.portfolio.cash, open: s.portfolio.positions.size, closed: s.portfolio.closed.length }));
+  const beforeTrades = engine.c.trades;
   engine.stop();
   ({ engine } = build(cfg));
   engine.start();
-  assert.equal(engine.portfolio.cash, before.cash);
-  assert.equal(engine.portfolio.positions.size, before.open);
-  assert.equal(engine.portfolio.closed.length, before.closed);
+  engine.strategies.forEach((s, i) => {
+    assert.equal(s.portfolio.cash, before[i].cash, s.id);
+    assert.equal(s.portfolio.positions.size, before[i].open, s.id);
+    assert.equal(s.portfolio.closed.length, before[i].closed, s.id);
+  });
+  assert.equal(engine.c.trades, beforeTrades, 'globale tellers hersteld');
   await sleep(3000);
   engine.stop();
   mock.close();

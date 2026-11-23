@@ -94,6 +94,10 @@
   .bar .b span { position: absolute; inset: 0 auto 0 0; background: #ffd9de; }
   .bar .b em { position: relative; font-style: normal; padding-left: 7px; line-height: 18px; }
   .empty { color: var(--faint); font: 12px var(--mono); padding: 18px 4px; text-align: center; }
+  .strat tbody tr { cursor: pointer; }
+  .strat td:first-child b { display: block; } .strat td:first-child small { color: var(--mute); font: 10.5px var(--sans); }
+  .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: 0; }
+  .selbadge { font: 700 10px var(--mono); padding: 3px 7px; border-radius: 6px; background: #eef2ff; color: var(--blue); letter-spacing: .08em; margin-left: 6px; }
   .warn { margin-top: 14px; font: 11.5px var(--sans); color: var(--mute); text-align: center; line-height: 1.5; }
 </style>
 </head>
@@ -115,6 +119,12 @@
   </header>
 
   <div class="grid">
+    <div class="card">
+      <div class="label">Strategieën · naast elkaar op dezelfde data <span class="sub">tik een rij voor details</span></div>
+      <canvas id="cmp" height="190"></canvas>
+      <div class="tbl"><table class="strat"><thead><tr><th>strategie</th><th>equity</th><th>x</th><th>trades</th><th>W/L</th><th>winrate</th><th>PF</th><th>netto</th><th>max DD</th><th>open</th></tr></thead><tbody id="strat"></tbody></table></div>
+    </div>
+
     <div class="card">
       <div class="label">Balance · equity <span class="sub" id="eqsub"></span></div>
       <canvas id="eq" height="210"></canvas>
@@ -225,8 +235,10 @@ function flash(id, good) {
 
 // ── charts ────────────────────────────────────────────────
 function canvasCtx(cv) {
-  const dpr = devicePixelRatio || 1, w = cv.clientWidth, h = +cv.getAttribute('height');
-  if (cv.width !== w * dpr) { cv.width = w * dpr; cv.height = h * dpr; cv.style.height = h + 'px'; }
+  // basishoogte één keer onthouden: cv.height wordt hieronder met devicePixelRatio vermenigvuldigd
+  if (!cv.dataset.h) cv.dataset.h = cv.getAttribute('height');
+  const dpr = devicePixelRatio || 1, w = cv.clientWidth, h = +cv.dataset.h;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); cv.style.height = h + 'px'; }
   const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
   return { g, w, h };
 }
@@ -262,12 +274,41 @@ function lineChart(cv, pts, { color = '#1f8a4c', fmtY = v => v.toFixed(3), refs 
   }
 }
 
+const COLORS = ['#1f8a4c', '#1f5fd6', '#d6336c', '#d97a06', '#7a3ff2', '#0b8f8f'];
+function multiChart(cv, series) {
+  const { g, w, h } = canvasCtx(cv);
+  const L = 8, R = 52, T = 12, B = 22;
+  const all = series.flatMap(s => s.pts);
+  if (all.length < 2) { g.fillStyle = '#b8bdc5'; g.font = '12px ui-monospace'; g.fillText('wachten op data…', L, h / 2); return; }
+  let x0 = Math.min(...all.map(p => p[0])), x1 = Math.max(...all.map(p => p[0]));
+  let y0 = Math.min(1, ...all.map(p => p[1])), y1 = Math.max(1, ...all.map(p => p[1]));
+  const pad = Math.max((y1 - y0) * 0.1, 0.01); y0 -= pad; y1 += pad;
+  const X = x => L + (x - x0) / Math.max(1, x1 - x0) * (w - L - R), Y = y => T + (1 - (y - y0) / (y1 - y0)) * (h - T - B);
+  g.font = '10px ui-monospace, monospace'; g.fillStyle = '#b8bdc5'; g.strokeStyle = '#f0f1f3';
+  for (let i = 0; i <= 3; i++) { const v = y0 + (y1 - y0) * i / 3; g.beginPath(); g.moveTo(L, Y(v)); g.lineTo(w - R, Y(v)); g.stroke(); g.fillText(v.toFixed(2) + '×', w - R + 6, Y(v) + 3); }
+  for (let i = 0; i <= 3; i++) { const t = x0 + (x1 - x0) * i / 3; g.fillText(new Date(t).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }), X(t) - (i === 3 ? 30 : i ? 15 : 0), h - 6); }
+  g.setLineDash([4, 4]); g.strokeStyle = '#c9cdd3'; g.beginPath(); g.moveTo(L, Y(1)); g.lineTo(w - R, Y(1)); g.stroke(); g.setLineDash([]);
+  series.forEach(s => {
+    if (s.pts.length < 2) return;
+    g.beginPath(); s.pts.forEach((p, i) => i ? g.lineTo(X(p[0]), Y(p[1])) : g.moveTo(X(p[0]), Y(p[1])));
+    g.strokeStyle = s.color; g.lineWidth = s.sel ? 2.6 : 1.4; g.globalAlpha = s.sel ? 1 : 0.75; g.stroke(); g.globalAlpha = 1;
+  });
+}
+
 // ── render ────────────────────────────────────────────────
 let S = null, selected = null, seenLog = 0;
 function render(s) {
   S = s;
   const up = s.now - s.startedAt, eqUsd = s.equity * s.solUsd, x = s.equity / s.startBalance;
-  $('demo').innerHTML = s.demo ? '<span class="badge">DEMO · SYNTHETISCHE MARKT</span>' : '<span class="badge" style="background:#e7f5ec;color:#1f8a4c">LIVE DATA · PAPER</span>';
+  const strats = s.strategies || [];
+  multiChart($('cmp'), strats.map((x, i) => ({ color: COLORS[i % COLORS.length], sel: x.id === s.selected, pts: x.curve.map(([t, e]) => [t, e / (x.equity / x.x)]) })));
+  $('strat').innerHTML = strats.map((x, i) => {
+    const st = x.stats, pf = !isFinite(st.profitFactor) || st.profitFactor === null ? (st.trades ? '∞' : '—') : st.profitFactor.toFixed(2);
+    return `<tr data-s="${esc(x.id)}" class="${x.id === s.selected ? 'sel' : ''}"><td><b><span class="swatch" style="background:${COLORS[i % COLORS.length]}"></span>${esc(x.name)}</b><small>${esc(x.desc)}</small></td>
+      <td>${x.equity.toFixed(4)}</td><td class="${x.x >= 1 ? 'g' : 'r'}">${x.x.toFixed(2)}×</td><td>${st.trades}</td><td><span class="g">${st.wins}</span>/<span class="r">${st.losses}</span></td>
+      <td>${st.trades ? st.winRate.toFixed(0) + '%' : '—'}</td><td>${pf}</td><td class="${st.netSol >= 0 ? 'g' : 'r'}">${sgn(st.netSol, 4)}</td><td>${st.maxDrawdownPct.toFixed(1)}%</td><td>${x.open}${x.guard && !x.guard.ok && x.guard.reason !== 'max posities open' ? ' <span class="r" title="' + esc(x.guard.reason) + '">■</span>' : ''}</td></tr>`;
+  }).join('');
+  $('demo').innerHTML = (s.demo ? '<span class="badge">DEMO · SYNTHETISCHE MARKT</span>' : '<span class="badge" style="background:#e7f5ec;color:#1f8a4c">LIVE DATA · PAPER</span>') + (strats.length > 1 ? `<span class="selbadge">${esc(s.selectedName).toUpperCase()}</span>` : '');
   const dc = s.paused ? 'pause' : s.feedUp ? '' : 'off';
   $('status').innerHTML = `<span class="dot ${dc}"></span>${s.paused ? 'gepauzeerd' : s.feedUp ? 'running' : 'feed offline'} · ${hms(up)} · 10 agents · pump.fun · SOL $${s.solUsd.toFixed(2)}${s.solLive || s.demo ? '' : ' (schatting)'}`;
   $('bal').textContent = '$' + eqUsd.toFixed(2);
@@ -353,16 +394,26 @@ function render(s) {
     : '<tr><td colspan="11" class="empty">Nog geen afgesloten trades</td></tr>';
 }
 
+let SEL = new URLSearchParams(location.search).get('s') || '';
+$('strat').addEventListener('click', e => {
+  const tr = e.target.closest('tr'); if (!tr) return;
+  SEL = tr.dataset.s; history.replaceState(null, '', '?s=' + encodeURIComponent(SEL));
+  selected = null; seenLog = 0;
+  fetch('/api/state?s=' + encodeURIComponent(SEL)).then(r => r.json()).then(render);
+  connect();
+});
 $('ptab').addEventListener('click', e => { const tr = e.target.closest('tr'); if (tr) { selected = tr.dataset.m; S && render(S); } });
 $('pause').onclick = () => fetch(S?.paused ? '/api/resume' : '/api/pause', { method: 'POST' });
-$('reset').onclick = () => { if (confirm('Paper-account resetten naar de startbalans? Alle trades worden gewist.')) fetch('/api/reset', { method: 'POST' }); };
+$('reset').onclick = () => { if (confirm('Alle paper-accounts (alle strategieën) resetten naar de startbalans? Alle trades worden gewist.')) fetch('/api/reset', { method: 'POST' }); };
 
+let ES = null;
 function connect() {
-  const es = new EventSource('/api/stream');
+  ES?.close();
+  const es = ES = new EventSource('/api/stream?s=' + encodeURIComponent(SEL));
   es.onmessage = m => render(JSON.parse(m.data));
   es.onerror = () => { $('status').innerHTML = '<span class="dot off"></span>dashboard verloor verbinding met de bot — opnieuw proberen…'; };
 }
-fetch('/api/state').then(r => r.json()).then(render).finally(connect);
+fetch('/api/state?s=' + encodeURIComponent(SEL)).then(r => r.json()).then(render).finally(connect);
 </script>
 </body>
 </html>

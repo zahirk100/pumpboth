@@ -29,7 +29,7 @@ export class Reporter extends EventEmitter {
       console.log(`\x1b[90m${t}\x1b[0m \x1b[${COLORS[type] || 37}m${type.toUpperCase().padEnd(5)}\x1b[0m ${text}`);
     }
     this.emit('log', ev);
-    if (this.cfg.telegramTradeAlerts && ['buy', 'sell', 'stop', 'guard'].includes(type)) this.telegram(`${type.toUpperCase()} · ${text}`);
+    if (this.cfg.telegramTradeAlerts && !data.noTg && ['buy', 'sell', 'stop', 'guard'].includes(type)) this.telegram(`${type.toUpperCase()} · ${text}`);
     return ev;
   }
 
@@ -57,7 +57,7 @@ export class Reporter extends EventEmitter {
   }
 
   /** Eén keer per dag rond recapHour. */
-  maybeRecap(portfolio, equity, solUsd, now = new Date()) {
+  maybeRecap(portfolio, equity, solUsd, now = new Date(), strategies = []) {
     const day = now.toLocaleDateString('sv-SE');
     if (now.getHours() !== this.cfg.recapHour || this.lastRecapDay === day) return null;
     this.lastRecapDay = day;
@@ -69,6 +69,11 @@ export class Reporter extends EventEmitter {
       `Netto: ${s.netSol >= 0 ? '+' : ''}${s.netSol.toFixed(4)} SOL · profit factor ${Number.isFinite(s.profitFactor) ? s.profitFactor.toFixed(2) : '∞'}`,
       `Beste trade: ${s.bestX.toFixed(2)}× · max drawdown ${s.maxDrawdownPct.toFixed(1)}%`,
     ];
+    if (strategies.length > 1) {
+      lines.push('', 'Strategieën (24u):');
+      for (const x of [...strategies].sort((a, b) => b.equity - a.equity))
+        lines.push(`• ${x.name}: ${(x.equity / x.start).toFixed(2)}× · ${x.stats.trades} trades · netto ${x.stats.netSol >= 0 ? '+' : ''}${x.stats.netSol.toFixed(4)} SOL`);
+    }
     const text = lines.join('\n');
     this.log('info', text.replace(/\n/g, ' · '));
     this.telegram(text);

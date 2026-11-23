@@ -142,8 +142,16 @@ export class Feed extends EventEmitter {
       }
       this.emit(ev.kind, ev);
     });
+    ws.on('unexpected-response', (req, res) => {
+      // PumpPortal weigert de verbinding (storing of tijdelijke ban): niet blijven hameren.
+      this.stats.lastHttpStatus = res.statusCode;
+      this.backoff = Math.max(this.backoff, 120_000);
+      this.log('feed', `PumpPortal weigert verbinding (HTTP ${res.statusCode}) — volgende poging over ${Math.round(this.backoff / 60000)} min`);
+      ws.terminate();
+    });
     ws.on('close', () => this.#onDown());
     ws.on('error', err => {
+      if (/closed before the connection/.test(err.message)) return;
       const now = Date.now();
       if (err.message !== this.lastErr || now - (this.lastErrAt || 0) > 10 * 60_000) {
         this.log('feed', `Websocket-fout: ${err.message}${/50[234]/.test(err.message) ? ' (storing bij PumpPortal — blijft opnieuw proberen)' : ''}`);
@@ -158,7 +166,7 @@ export class Feed extends EventEmitter {
     if (this.stopped) return;
     this.stats.reconnects++;
     this.retry = setTimeout(() => this.#connect(), this.backoff);
-    this.backoff = Math.min(this.backoff * 2, 30000);
+    this.backoff = this.backoff >= 120_000 ? Math.min(this.backoff * 1.5, 600_000) : Math.min(this.backoff * 2, 30_000);
   }
 
   #sample(kind, m) {

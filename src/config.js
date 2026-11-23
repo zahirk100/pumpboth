@@ -98,6 +98,20 @@ export const defaults = {
   recapHour: 7,                  // dagelijkse samenvatting (lokale tijd)
   telegramTradeAlerts: true,
 
+  // ── STRATEGIEËN ───────────────────────────────────────────
+  // Draaien allemaal tegelijk op dezelfde live data, elk met een eigen
+  // virtueel saldo. 'overrides' overschrijft de instellingen hierboven.
+  // De eerste is de hoofdstrategie (Telegram-meldingen, copy trading).
+  strategies: [
+    { id: 'streng', name: 'Streng', desc: 'Basis: brede vraag, strenge filters' },
+    { id: 'los', name: 'Losser', desc: 'Eerder instappen met minder bewijs',
+      overrides: { minUniqueBuyers: 8, minTrades: 12, minAgeSec: 12, minNetInflowSol: 1, minBuySellRatio: 1.3, minMcapSol: 33, maxTop10Pct: 40 } },
+    { id: 'snel', name: 'Snelle winst', desc: 'Zelfde instap, snel winst pakken en krap stoppen',
+      overrides: { takeProfits: [{ x: 1.5, sell: 50 }, { x: 2.5, sell: 30 }], stopLossPct: 15, trailingStopPct: 20, stallSec: 120, stallMinGainPct: 5 } },
+    { id: 'laat', name: 'Laat-instapper', desc: 'Alleen tokens die al bewezen hebben te stijgen',
+      overrides: { minAgeSec: 60, maxAgeSec: 420, minUniqueBuyers: 40, minTrades: 80, minMcapSol: 90, maxMcapSol: 300, minNetInflowSol: 4, maxDrawFromPeakPct: 20 } },
+  ],
+
   // ── Dashboard ─────────────────────────────────────────────
   port: 8787,
   host: '127.0.0.1',
@@ -125,6 +139,9 @@ export function loadConfig({ demo = false, root = PROJECT } = {}) {
   cfg.hosted = Boolean(process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_ENVIRONMENT || process.env.HOSTED);
   cfg.host = process.env.HOST || (cfg.hosted ? '0.0.0.0' : cfg.host);
   cfg.dashboardPassword = process.env.DASHBOARD_PASSWORD || '';
+  // Bij een nieuwe deploy draait de oude versie nog even; even wachten voorkomt
+  // twee gelijktijdige verbindingen (PumpPortal geeft daar een tijdelijke ban voor).
+  cfg.feedStartDelayMs = Number(process.env.FEED_START_DELAY_SEC ?? (cfg.hosted ? 30 : 0)) * 1000;
   cfg.telegramToken = process.env.TELEGRAM_BOT_TOKEN || '';
   cfg.telegramChatId = process.env.TELEGRAM_CHAT_ID || '';
   if (process.env.COPY_WALLETS) cfg.copyWallets = process.env.COPY_WALLETS.split(',').map(s => s.trim()).filter(Boolean);

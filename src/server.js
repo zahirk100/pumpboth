@@ -59,10 +59,11 @@ export function startServer(engine, cfg) {
       res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
       return res.end(JSON.stringify({ stats: f.stats, subscribed: f.tokens.size, counters: engine.c, samples: f.samples }, null, 2));
     }
-    if (req.method === 'GET' && url.pathname === '/api/state') return json(res, 200, engine.snapshot());
+    if (req.method === 'GET' && url.pathname === '/api/state') return json(res, 200, engine.snapshot(url.searchParams.get('s')));
     if (req.method === 'GET' && url.pathname === '/api/stream') {
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive', 'x-accel-buffering': 'no' });
       res.write('retry: 2000\n\n');
+      res.sid = url.searchParams.get('s') || '';
       clients.add(res);
       req.on('close', () => clients.delete(res));
       return;
@@ -80,8 +81,11 @@ export function startServer(engine, cfg) {
 
   const push = setInterval(() => {
     if (!clients.size) return;
-    const data = `data: ${JSON.stringify(engine.snapshot())}\n\n`;
-    for (const c of clients) c.write(data);
+    const cache = new Map();
+    for (const c of clients) {
+      if (!cache.has(c.sid)) cache.set(c.sid, `data: ${JSON.stringify(engine.snapshot(c.sid))}\n\n`);
+      c.write(cache.get(c.sid));
+    }
   }, 1000);
 
   server.on('close', () => clearInterval(push));
