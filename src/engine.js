@@ -100,7 +100,12 @@ export class Engine extends EventEmitter {
     this.tokens.set(ev.mint, t);
 
     const s = scan(t, this.registry, this.cfg, ev.ts);
-    if (!s.ok && s.fatal) return this.#reject(t, s.reason, 'scanRejected');
+    if (!s.ok && s.fatal) {
+      // Serial launcher ontdekt? Dan ook zijn eerdere tokens die we nog volgen afschrijven.
+      if (s.reason === 'serial launcher') for (const o of this.tokens.values())
+        if (o !== t && o.creator === t.creator && o.status === 'watching') this.#reject(o, 'serial launcher', 'scanRejected');
+      return this.#reject(t, s.reason, 'scanRejected');
+    }
 
     // ruimte maken: oudste token dat we alleen bekijken laten vallen
     const watching = [...this.tokens.values()].filter(x => x.status === 'watching');
