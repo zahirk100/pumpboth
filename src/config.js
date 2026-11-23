@@ -110,6 +110,10 @@ export const defaults = {
       overrides: { takeProfits: [{ x: 1.5, sell: 50 }, { x: 2.5, sell: 30 }], stopLossPct: 15, trailingStopPct: 20, stallSec: 120, stallMinGainPct: 5 } },
     { id: 'laat', name: 'Laat-instapper', desc: 'Alleen tokens die al bewezen hebben te stijgen',
       overrides: { minAgeSec: 60, maxAgeSec: 420, minUniqueBuyers: 40, minTrades: 80, minMcapSol: 90, maxMcapSol: 300, minNetInflowSol: 4, maxDrawFromPeakPct: 20 } },
+    { id: 'scalp', name: 'Scalper', desc: 'Veel trades: vroeg in, kleine winst pakken, binnen minuten eruit',
+      overrides: { minAgeSec: 8, minUniqueBuyers: 6, minTrades: 8, minNetInflowSol: 0.5, minBuySellRatio: 1.2, minMcapSol: 30, maxTop10Pct: 45,
+        takeProfits: [{ x: 1.25, sell: 60 }, { x: 1.6, sell: 40 }], stopLossPct: 10, trailingStopPct: 12,
+        stallSec: 45, stallMinGainPct: 5, maxHoldMin: 4, maxOpenPositions: 5, riskPerTradePct: 6 } },
   ],
 
   // ── Dashboard ─────────────────────────────────────────────

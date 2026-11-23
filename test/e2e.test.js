@@ -29,11 +29,12 @@ test('bot draait tegen de feed, boekhouding klopt, staat overleeft herstart', { 
     dataDir: fs.mkdtempSync(path.join(os.tmpdir(), 'nd-')),
   };
   let { engine, rep } = build(cfg);
+  try {
   engine.start();
   await sleep(45_000);
 
   const c = engine.c;
-  assert.equal(engine.strategies.length, 4, 'vier strategieën');
+  assert.equal(engine.strategies.length, 5, 'vijf strategieën');
   assert.ok(c.newPairs > 30, `newPairs ${c.newPairs}`);
   assert.ok(c.trades > 500, `trades ${c.trades}`);
   const sum = k => engine.strategies.reduce((a, s) => a + s.c[k], 0);
@@ -55,7 +56,7 @@ test('bot draait tegen de feed, boekhouding klopt, staat overleeft herstart', { 
   for (const s of engine.strategies) {
     const snap = engine.snapshot(s.id);
     assert.equal(snap.selected, s.id);
-    assert.equal(snap.strategies.length, 4);
+    assert.equal(snap.strategies.length, 5);
     assert.ok(snap.equity > 0);
   }
 
@@ -73,6 +74,8 @@ test('bot draait tegen de feed, boekhouding klopt, staat overleeft herstart', { 
   });
   assert.equal(engine.c.trades, beforeTrades, 'globale tellers hersteld');
   await sleep(3000);
-  engine.stop();
-  mock.close();
+  } finally {
+    engine.stop();
+    mock.close();
+  }
 });

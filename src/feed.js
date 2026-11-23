@@ -101,6 +101,7 @@ export class Feed extends EventEmitter {
     ws.on('open', () => {
       this.connected = true;
       this.stats.connectedAt = Date.now();
+      this.stats.refusals = 0; this.stats.diagnosis = ''; this.stats.nextRetryAt = 0;
       this.backoff = 1000;
       this.lastMsg = Date.now();
       this.log('feed', `Verbonden met ${this.url.replace(/api-key=[^&]+/, 'api-key=***')}`);
@@ -145,9 +146,12 @@ export class Feed extends EventEmitter {
     ws.on('unexpected-response', (req, res) => {
       // PumpPortal weigert de verbinding (storing of tijdelijke ban): niet blijven hameren.
       this.stats.lastHttpStatus = res.statusCode;
+      this.stats.refusals = (this.stats.refusals || 0) + 1;
       this.backoff = Math.max(this.backoff, 120_000);
-      this.log('feed', `PumpPortal weigert verbinding (HTTP ${res.statusCode}) — volgende poging over ${Math.round(this.backoff / 60000)} min`);
+      this.stats.nextRetryAt = Date.now() + this.backoff;
+      this.log('feed', `PumpPortal weigert verbinding (HTTP ${res.statusCode}) — volgende poging om ${new Date(this.stats.nextRetryAt).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}`);
       ws.terminate();
+      if (this.stats.refusals === 2 || this.stats.refusals % 6 === 0) this.#probe();
     });
     ws.on('close', () => this.#onDown());
     ws.on('error', err => {
@@ -158,6 +162,31 @@ export class Feed extends EventEmitter {
         this.lastErr = err.message; this.lastErrAt = now;
       }
     });
+  }
+
+  /** Diagnose: lukt een verbinding ZONDER API key wel? Dan ligt het aan de key. */
+  #probe() {
+    if (!/api-key=/.test(this.url) || this.probing) return;
+    this.probing = true;
+    const url = this.url.replace(/[?&]api-key=[^&]+/, '').replace(/\?$/, '');
+    const done = (verdict, detail) => {
+      if (!this.probing) return;
+      this.probing = false;
+      clearTimeout(timer);
+      try { p.terminate(); } catch {}
+      this.stats.diagnosis = verdict;
+      this.log('feed', detail);
+      this.emit('diagnosis', verdict);
+    };
+    const p = new WebSocket(url, { handshakeTimeout: 10000 });
+    const timer = setTimeout(() => done('onbekend', 'Diagnose: geen antwoord van PumpPortal binnen 15s'), 15000);
+    p.on('open', () => p.send(JSON.stringify({ method: 'subscribeNewToken' })));
+    p.on('message', buf => {
+      let m; try { m = JSON.parse(buf.toString()); } catch { return; }
+      if (m.mint) done('key', 'Diagnose: ZONDER API key werkt PumpPortal wél → het probleem zit bij de key of het gekoppelde wallet-saldo. Check de key in Railway en het saldo op solscan.');
+    });
+    p.on('unexpected-response', (q, r) => done('pumpportal', `Diagnose: ook zonder key weigert PumpPortal (HTTP ${r.statusCode}) → storing bij PumpPortal of blokkade van het (gedeelde) server-IP. De bot blijft het proberen.`));
+    p.on('error', () => {});
   }
 
   #onDown() {
