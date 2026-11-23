@@ -37,7 +37,7 @@ export function startServer(engine, cfg) {
     // Health-check voor Railway: altijd open, verraadt niets gevoeligs
     if (url.pathname === '/health') {
       const f = engine.feed.stats, now = Date.now();
-      return json(res, 200, { ok: true, feedConnected: engine.feed.connected, secSinceLastMessage: Math.round((now - engine.feed.lastMsg) / 1000), creates: f.creates });
+      return json(res, 200, { ok: true, feedConnected: engine.feed.connected, secSinceLastMessage: Math.round((now - engine.feed.lastMsg) / 1000), creates: f.creates, tradeMsgsToday: f.tradeMsgsToday, tradesProcessed: engine.c.trades, hasApiKey: Boolean(cfg.feedApiKey), unknownMessages: f.unknown });
     }
 
     // Toegang
