@@ -57,7 +57,20 @@ Een taalmodel doet er seconden over om te antwoorden. Op pump.fun is een token i
 
 ---
 
-## PumpPortal API key (nodig voor live data)
+## Databronnen
+
+De bot gebruikt twee bronnen en schakelt automatisch tussen beide:
+
+| Bron | Kosten | Rol |
+|---|---|---|
+| **PumpAPI** (`wss://stream.pumpapi.io`) | gratis, geen key | **primair**: ziet alle pump.fun-trades vanaf het eerste blok |
+| **PumpPortal** | API key, 0,01 SOL per 10.000 berichten | **reserve**: start alleen als PumpAPI langer dan 60 s wegvalt, en stopt weer als PumpAPI stabiel terug is |
+
+Zonder `PUMPPORTAL_API_KEY` draait de bot alleen op PumpAPI, dus zonder reserve. Met `FEED_MODE=pumpapi` of `FEED_MODE=pumpportal` forceer je één bron.
+
+PumpAPI staat maar één verbinding per IP-adres toe. Daarom wacht de bot na een deploy 30 s met verbinden.
+
+## PumpPortal API key (reserve-databron)
 
 PumpPortal stuurt sinds 1 mei 2026 alleen nog trades als je een API key hebt. Nieuwe tokens zijn gratis, maar handelsdata kost **0,01 SOL per 10.000 trade-berichten**. Die kosten worden afgeschreven van een wallet die aan je key gekoppeld is. Die wallet moet minstens 0,02 SOL bevatten.
 

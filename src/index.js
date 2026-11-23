@@ -3,6 +3,8 @@
 //         npm run demo      → synthetische markt, werkt offline
 import { loadConfig } from './config.js';
 import { Feed } from './feed.js';
+import { FirehoseFeed } from './firehose.js';
+import { FeedRouter } from './router.js';
 import { PaperExecutor } from './executor.js';
 import { Reporter } from './reporter.js';
 import { SolPrice } from './solPrice.js';
@@ -23,14 +25,23 @@ if (demo) {
 const reporter = new Reporter(cfg);
 const solPrice = new SolPrice(demo ? 140 : cfg.solUsdFallback, { offline: demo });
 solPrice.start();
-const feed = new Feed(cfg.feedUrl, { silenceSec: cfg.feedSilenceReconnectSec, log: (_, t) => reporter.log('feed', t) });
+const flog = (_, t) => reporter.log('feed', t);
+const pumpportal = () => new Feed(cfg.feedUrl, { silenceSec: cfg.feedSilenceReconnectSec, log: flog });
+let feed;
+if (demo || cfg.feedMode === 'pumpportal') feed = pumpportal();
+else {
+  // Primair PumpAPI (gratis). Reserve PumpPortal alleen als er een API key is.
+  const fallback = cfg.feedApiKey && cfg.feedMode !== 'pumpapi' ? pumpportal() : null;
+  feed = new FeedRouter({ primary: new FirehoseFeed(cfg.firehoseUrl, { log: flog }), fallback, log: flog, failoverSec: cfg.failoverSec });
+}
 const engine = new Engine(cfg, { feed, executor: new PaperExecutor(cfg), reporter, solPrice });
 
 console.log(`\n  🌙 NIGHT DESK ${demo ? '— DEMO (synthetische markt)' : '— LIVE data · PAPER trading'}`);
 console.log(`  Dashboard: http://${cfg.host === '0.0.0.0' ? 'localhost' : cfg.host}:${cfg.port}${cfg.dashboardPassword ? ' (met wachtwoord)' : ''}\n`);
 
 engine.start();
-if (!demo && !cfg.feedApiKey) reporter.log('guard', 'Geen PUMPPORTAL_API_KEY ingesteld — PumpPortal stuurt dan geen trades, alleen nieuwe tokens. Zie README.');
+if (!demo && cfg.feedMode === 'pumpportal' && !cfg.feedApiKey) reporter.log('guard', 'Geen PUMPPORTAL_API_KEY ingesteld — PumpPortal stuurt dan geen trades, alleen nieuwe tokens. Zie README.');
+if (!demo && cfg.feedMode !== 'pumpportal') reporter.log('info', `Databron: PumpAPI (gratis)${cfg.feedApiKey && cfg.feedMode !== 'pumpapi' ? ' · reserve: PumpPortal' : ' · geen reserve (geen PumpPortal-key)'}`);
 const server = startServer(engine, cfg);
 server.on('error', e => {
   console.error(`Dashboard kon niet starten op poort ${cfg.port}: ${e.message}. Zet een andere PORT in .env`);

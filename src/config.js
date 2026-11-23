@@ -14,7 +14,9 @@ export const defaults = {
   startBalanceSol: 0.5,          // virtueel startkapitaal
 
   // ── Databronnen ───────────────────────────────────────────
-  feedUrl: 'wss://pumpportal.fun/api/data',
+  firehoseUrl: 'wss://stream.pumpapi.io/',   // primaire bron: gratis, alles
+  feedUrl: 'wss://pumpportal.fun/api/data',   // reserve: PumpPortal (API key, betaald per bericht)
+  failoverSec: 60,               // zo lang mag de primaire bron weg zijn voor de reserve start
   feedSilenceReconnectSec: 180,  // geen bericht ontvangen? → opnieuw verbinden
   // PumpPortal rekent sinds mei 2026 0.01 SOL per 10.000 trade-berichten (API key nodig).
   maxTradeMsgsPerDay: 50_000,    // ≈ 0.05 SOL/dag; daarboven geen nieuwe tokens meer volgen
@@ -154,6 +156,8 @@ export function loadConfig({ demo = false, root = PROJECT } = {}) {
   cfg.telegramChatId = process.env.TELEGRAM_CHAT_ID || '';
   if (process.env.COPY_WALLETS) cfg.copyWallets = process.env.COPY_WALLETS.split(',').map(s => s.trim()).filter(Boolean);
   if (process.env.FEED_URL) cfg.feedUrl = process.env.FEED_URL;
+  if (process.env.FIREHOSE_URL) cfg.firehoseUrl = process.env.FIREHOSE_URL;
+  cfg.feedMode = (process.env.FEED_MODE || 'auto').toLowerCase(); // auto | pumpapi | pumpportal
   cfg.feedApiKey = process.env.PUMPPORTAL_API_KEY || '';
   if (cfg.feedApiKey && !demo) cfg.feedUrl += (cfg.feedUrl.includes('?') ? '&' : '?') + 'api-key=' + encodeURIComponent(cfg.feedApiKey);
   if (process.env.MAX_TRADE_MSGS_PER_DAY) cfg.maxTradeMsgsPerDay = Number(process.env.MAX_TRADE_MSGS_PER_DAY);

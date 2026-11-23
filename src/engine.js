@@ -478,7 +478,7 @@ export class Engine extends EventEmitter {
         dailyMaxDrawdownPct: s.cfg.dailyMaxDrawdownPct, takeProfits: s.cfg.takeProfits,
         maxOpenPositions: s.cfg.maxOpenPositions, copyWallets: s.copy ? this.copySet.size : 0,
         minUniqueBuyers: s.cfg.minUniqueBuyers, minMcapSol: s.cfg.minMcapSol, maxMcapSol: s.cfg.maxMcapSol,
-        hasFeedKey: Boolean(this.cfg.feedApiKey) || this.cfg.demo, maxTradeMsgsPerDay: this.cfg.maxTradeMsgsPerDay,
+        hasFeedKey: Boolean(this.cfg.feedApiKey) || this.cfg.demo || this.cfg.feedMode !== 'pumpportal', maxTradeMsgsPerDay: this.cfg.maxTradeMsgsPerDay,
       },
     };
   }

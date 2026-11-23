@@ -311,8 +311,9 @@ function render(s) {
   $('demo').innerHTML = (s.demo ? '<span class="badge">DEMO · SYNTHETISCHE MARKT</span>' : '<span class="badge" style="background:#e7f5ec;color:#1f8a4c">LIVE DATA · PAPER</span>') + (strats.length > 1 ? `<span class="selbadge">${esc(s.selectedName).toUpperCase()}</span>` : '');
   const dc = s.paused ? 'pause' : s.feedUp ? '' : 'off';
   const f = s.feed || {};
-  const off = !s.feedUp ? `feed offline${f.lastHttpStatus ? ` (PumpPortal ${f.lastHttpStatus})` : ''}${f.nextRetryAt ? ` · opnieuw ${new Date(f.nextRetryAt).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}` : ''}${f.diagnosis === 'key' ? ' · ⚠ key-probleem' : f.diagnosis === 'pumpportal' ? ' · storing/blokkade PumpPortal' : ''}` : '';
-  $('status').innerHTML = `<span class="dot ${dc}"></span>${s.paused ? 'gepauzeerd' : s.feedUp ? 'running' : off} · ${hms(up)} · 10 agents · pump.fun · SOL $${s.solUsd.toFixed(2)}${s.solLive || s.demo ? '' : ' (schatting)'}`;
+  const off = !s.feedUp ? `feed offline${f.primaryStatus ? ` · PumpAPI ${f.primaryStatus}` : ''}${f.fallbackStatus ? ` · PumpPortal ${f.fallbackStatus}` : (!f.primaryStatus && f.lastHttpStatus ? ` (${f.lastHttpStatus})` : '')}${f.nextRetryAt ? ` · opnieuw ${new Date(f.nextRetryAt).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}` : ''}${f.diagnosis === 'key' ? ' · ⚠ key-probleem' : f.diagnosis === 'pumpportal' ? ' · storing/blokkade PumpPortal' : ''}` : '';
+  const src = s.feedUp && f.source ? ` · bron ${f.source}${f.source === 'PumpAPI' && f.rate ? ` (${f.rate} msg/s)` : ''}${f.source === 'PumpPortal' && f.fallbackOn ? ' (reserve)' : ''}` : '';
+  $('status').innerHTML = `<span class="dot ${dc}"></span>${s.paused ? 'gepauzeerd' : s.feedUp ? 'running' + src : off} · ${hms(up)} · 10 agents · pump.fun · SOL $${s.solUsd.toFixed(2)}${s.solLive || s.demo ? '' : ' (schatting)'}`;
   $('bal').textContent = '$' + eqUsd.toFixed(2);
   $('balsub').innerHTML = `${s.equity.toFixed(4)} SOL · <b class="${x >= 1 ? 'g' : 'r'}">${x.toFixed(2)}×</b> van ${s.startBalance} SOL · ${s.stats.trades} trades · <span class="g">${s.stats.wins}W</span> / <span class="r">${s.stats.losses}L</span>`;
   $('pause').textContent = s.paused ? 'Hervat' : 'Pauzeer';
@@ -323,7 +324,7 @@ function render(s) {
   // agents
   const c = s.counters, cfg = s.config;
   const fm = s.feed?.tradeMsgsToday || 0;
-  agentSet('new', cfg.hasFeedKey ? `${c.watching} gevolgd · data ${fm.toLocaleString('nl-NL')}/${(cfg.maxTradeMsgsPerDay/1000).toFixed(0)}k (≈${(fm / 1e6).toFixed(3)} SOL)` : '⚠ geen PumpPortal API key → geen trades', c.newPairs);
+  agentSet('new', !cfg.hasFeedKey ? '⚠ geen trade-data' : f.source === 'PumpPortal' ? `${c.watching} gevolgd · betaald ${fm.toLocaleString('nl-NL')} msg` : `${c.watching} gevolgd · ${f.source || 'feed'} gratis`, c.newPairs);
   agentSet('scan', 'serial launchers · copycats', c.scanRejected);
   agentSet('bot', 'snipers + bundles + dev', c.botRejected);
   agentSet('mom', 'kopers · flow · ratio', c.momentumPassed);

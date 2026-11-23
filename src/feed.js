@@ -8,7 +8,7 @@ const num = v => (v === undefined || v === null || v === '' ? undefined : Number
 
 export function normalize(m, now = Date.now()) {
   if (!m || typeof m !== 'object' || !m.mint) return null;
-  const type = String(m.txType || '').toLowerCase();
+  const type = String(m.txType || m.action || '').toLowerCase();
 
   let vSol = num(m.vSolInBondingCurve);
   if (vSol === undefined && m.vQuoteInBondingCurve !== undefined) {
@@ -17,7 +17,7 @@ export function normalize(m, now = Date.now()) {
   }
   let vTokens = num(m.vTokensInBondingCurve);
   // Na migratie (PumpSwap / pump-amm) komen echte pool-reserves i.p.v. curve-reserves
-  if (!(vSol > 0) && num(m.solInPool) > 0) vSol = num(m.solInPool);
+  if (!(vSol > 0) && num(m.solInPool ?? m.quoteInPool) > 0) vSol = num(m.solInPool ?? m.quoteInPool);
   if (!(vTokens > 0) && num(m.tokensInPool) > 0) vTokens = num(m.tokensInPool);
   const base = {
     mint: m.mint,
