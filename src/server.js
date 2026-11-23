@@ -5,6 +5,18 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import readline from 'node:readline';
+
+const csvCell = v => {
+  if (v === null || v === undefined) return '';
+  const t = typeof v === 'object' ? JSON.stringify(v) : String(v);
+  return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+};
+function toCsv(rows) {
+  const flat = rows.map(r => { const { features, exits, ...rest } = r; return { ...rest, exits: (exits || []).join(' > '), ...(features || {}) }; });
+  const cols = [...new Set(flat.flatMap(r => Object.keys(r)))];
+  return [cols.join(','), ...flat.map(r => cols.map(c => csvCell(r[c])).join(','))].join('\n');
+}
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 
@@ -58,6 +70,27 @@ export function startServer(engine, cfg) {
       const f = engine.feed;
       res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
       return res.end(JSON.stringify({ stats: f.stats, subscribed: f.tokens.size, counters: engine.c, samples: f.samples }, null, 2));
+    }
+    if (req.method === 'GET' && url.pathname === '/api/trades.csv') {
+      res.writeHead(200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': 'attachment; filename="nightdesk-trades.csv"' });
+      return res.end(toCsv(engine.allClosed()));
+    }
+    if (req.method === 'GET' && url.pathname === '/api/research.csv') {
+      const file = path.join(cfg.dataDir, 'research.jsonl');
+      if (!fs.existsSync(file)) return json(res, 404, { error: 'nog geen onderzoeksdata' });
+      res.writeHead(200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': 'attachment; filename="nightdesk-onderzoek.csv"' });
+      const rl = readline.createInterface({ input: fs.createReadStream(file) });
+      let cols = null;
+      rl.on('line', line => {
+        let r; try { r = JSON.parse(line); } catch { return; }
+        if (!cols) { cols = Object.keys(r); res.write(cols.join(',') + '\n'); }
+        res.write(cols.map(c => csvCell(r[c])).join(',') + '\n');
+      });
+      rl.on('close', () => res.end());
+      return;
+    }
+    if (req.method === 'GET' && url.pathname === '/api/wallets') {
+      return json(res, 200, { summary: engine.wallets?.summary(), top: engine.wallets?.rank(50) || [] });
     }
     if (req.method === 'GET' && url.pathname === '/api/state') return json(res, 200, engine.snapshot(url.searchParams.get('s')));
     if (req.method === 'GET' && url.pathname === '/api/stream') {

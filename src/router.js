@@ -21,6 +21,8 @@ export class FeedRouter extends EventEmitter {
       for (const kind of ['create', 'trade', 'migration']) src.on(kind, ev => this.#forward(kind, ev, name));
       src.on('status', () => this.#updateStatus());
       src.on('diagnosis', v => this.emit('diagnosis', v));
+      // volledige marktstroom heeft alleen de primaire bron (PumpAPI)
+      if (name === 'primary') src.on('raw', ev => this.emit('raw', ev));
     }
   }
 
@@ -102,4 +104,5 @@ export class FeedRouter extends EventEmitter {
   unwatchTokens(m) { this.primary.unwatchTokens(m); this.fallback?.unwatchTokens(m); }
   forceUnwatch(m) { this.primary.forceUnwatch(m); this.fallback?.forceUnwatch(m); }
   watchAccounts(w) { this.primary.watchAccounts(w); this.fallback?.watchAccounts(w); }
+  unwatchAccounts(w) { this.primary.unwatchAccounts(w); this.fallback?.unwatchAccounts(w); }
 }

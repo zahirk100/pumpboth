@@ -72,6 +72,14 @@ export const defaults = {
   copyMinSol: 0.5,               // alleen kopiëren als zij minstens dit kopen
   copySizeFactor: 0.5,           // positie t.o.v. normale grootte
 
+  // ── SLIMME WALLETS (automatisch gevonden, voor "Smart money") ──
+  smartMinRounds: 8,             // minimaal zoveel afgeronde trades gezien
+  smartMinWinRate: 0.55,         // en minstens zoveel daarvan winstgevend
+  smartMinProfitSol: 0.5,        // en netto minstens zoveel SOL verdiend
+  smartMinEntrySec: 10,          // gemiddeld niet eerder ingestapt dan dit (geen sniper)
+  smartMinHoldSec: 30,           // gemiddeld minstens zo lang vastgehouden (volgbaar)
+  smartCopyTop: 10,              // de beste N wallets worden gekopieerd
+
   // ── SIZER ─────────────────────────────────────────────────
   riskPerTradePct: 4,            // % van equity per trade
   minPositionSol: 0.01,
@@ -108,7 +116,7 @@ export const defaults = {
   // virtueel saldo. 'overrides' overschrijft de instellingen hierboven.
   // De eerste is de hoofdstrategie (Telegram-meldingen, copy trading).
   strategies: [
-    { id: 'streng', name: 'Streng', desc: 'Basis: brede vraag, strenge filters' },
+    { id: 'streng', name: 'Streng', desc: 'Basis: brede vraag, strenge filters', copy: false },
     { id: 'los', name: 'Losser', desc: 'Eerder instappen met minder bewijs',
       overrides: { minUniqueBuyers: 8, minTrades: 12, minAgeSec: 12, minNetInflowSol: 1, minBuySellRatio: 1.3, minMcapSol: 33, maxTop10Pct: 40 } },
     { id: 'snel', name: 'Snelle winst', desc: 'Zelfde instap, snel winst pakken en krap stoppen',
@@ -123,6 +131,9 @@ export const defaults = {
       overrides: { minAgeSec: 4, minUniqueBuyers: 4, minTrades: 5, minNetInflowSol: 0.3, minBuySellRatio: 1.1, minMcapSol: 29, maxTop10Pct: 50, maxDrawFromPeakPct: 35,
         takeProfits: [{ x: 1.15, sell: 70 }, { x: 1.35, sell: 30 }], stopLossPct: 8, trailingStopPct: 10,
         stallSec: 30, stallMinGainPct: 4, maxHoldMin: 1.5, maxOpenPositions: 8, riskPerTradePct: 5, lossStreakPause: 8, lossStreakCooldownMin: 10 } },
+    { id: 'smart', name: 'Smart money', desc: 'Kopieert automatisch de best presterende wallets', copy: true, copyOnly: true,
+      overrides: { copyMinSol: 0.2, copySizeFactor: 1, maxOpenPositions: 5, stopLossPct: 30, stallSec: 900, maxHoldMin: 45, maxMcapSol: 400,
+        takeProfits: [{ x: 2, sell: 40 }, { x: 4, sell: 30 }, { x: 8, sell: 20 }], trailingStopPct: 35 } },
   ],
 
   // ── Dashboard ─────────────────────────────────────────────

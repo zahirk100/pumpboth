@@ -166,6 +166,22 @@
       </div>
     </div>
 
+    <div class="grid g2">
+      <div class="card">
+        <div class="label">Onderzoek · elke nieuwe token gemeten <span class="sub">zonder te handelen</span></div>
+        <div class="kpis" id="rkpis"></div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <a href="/api/research.csv"><button>⬇ Onderzoeksdata (CSV)</button></a>
+          <a href="/api/trades.csv"><button>⬇ Alle trades (CSV)</button></a>
+        </div>
+        <div class="empty" style="text-align:left;padding:10px 0 0">Per token een meting op 30s, 1, 2 en 5 min. Daarna 10 min volgen: raakt hij eerst +30% of eerst −20%?</div>
+      </div>
+      <div class="card">
+        <div class="label">Slimme wallets <span class="sub" id="wsub"></span></div>
+        <div class="tbl"><table><thead><tr><th>wallet</th><th>rondes</th><th>win</th><th>netto</th><th>houdt</th><th>instap</th><th></th></tr></thead><tbody id="wtab"></tbody></table></div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="label">Gesloten trades</div>
       <div class="tbl"><table><thead><tr><th>#</th><th>token</th><th>bron</th><th>geopend</th><th>duur</th><th>inleg</th><th>terug</th><th>P/L</th><th>x</th><th>piek</th><th>exit</th></tr></thead><tbody id="closed"></tbody></table></div>
@@ -328,7 +344,7 @@ function render(s) {
   agentSet('scan', 'serial launchers · copycats', c.scanRejected);
   agentSet('bot', 'snipers + bundles + dev', c.botRejected);
   agentSet('mom', 'kopers · flow · ratio', c.momentumPassed);
-  agentSet('copy', cfg.copyWallets ? `${cfg.copyWallets} wallet(s) gevolgd` : 'geen wallets ingesteld', c.copySignals);
+  agentSet('copy', s.wallets ? `${s.wallets.smart} slimme wallets gevonden` : (cfg.copyWallets ? `${cfg.copyWallets} wallet(s) gevolgd` : 'geen wallets ingesteld'), c.copySignals);
   agentSet('size', `${cfg.riskPerTradePct}% per trade · max ${cfg.maxOpenPositions} open`, '');
   agentSet('exec', `${cfg.latencyMs}ms latency · ${c.buyFails + c.sellFails} mislukt`, c.buys + c.sells);
   agentSet('exit', 'TP ' + cfg.takeProfits.map(t => t.x + '×').join('·') + ` · stop −${cfg.stopLossPct}%`, c.exits);
@@ -389,6 +405,19 @@ function render(s) {
   // watchlist
   $('watchsub').textContent = `${s.counters.watching} actief`;
   $('watch').innerHTML = s.watch.length ? s.watch.map(w => `<tr><td><b>$${esc(w.symbol)}</b></td><td>${w.ageSec}s</td><td>${usd(w.mcapUsd)}</td><td class="m">${esc(w.waiting)}</td></tr>`).join('') : '<tr><td colspan="4" class="empty">—</td></tr>';
+
+  // onderzoek
+  const R = s.research;
+  $('rkpis').innerHTML = R ? [
+    ['TOKENS GEZIEN', R.tokens.toLocaleString('nl-NL')], ['NU GEVOLGD', R.tracking], ['METINGEN KLAAR', R.finished.toLocaleString('nl-NL')],
+    ['EERST +30%', R.finished ? (R.upRate * 100).toFixed(1) + '%' : '—'], ['EERST −20%', R.finished ? (R.down / R.finished * 100).toFixed(1) + '%' : '—'], ['MOMENTOPNAMES', R.snapshots.toLocaleString('nl-NL')],
+  ].map(([a, b]) => `<div class="kpi"><div>${a}</div><div>${b}</div></div>`).join('') : '<div class="empty">alleen actief met PumpAPI</div>';
+  // slimme wallets
+  const W = s.wallets;
+  $('wsub').textContent = W ? `${W.tracked.toLocaleString('nl-NL')} wallets gevolgd · ${W.smart} slim` : '';
+  $('wtab').innerHTML = W && W.top.length ? W.top.map(w => `<tr><td><a href="https://solscan.io/account/${esc(w.addr)}" target="_blank" class="mono" style="color:inherit">${esc(w.addr.slice(0, 4))}…${esc(w.addr.slice(-4))}</a></td>
+    <td>${w.rounds}</td><td>${(w.winRate * 100).toFixed(0)}%</td><td class="g">+${w.realized.toFixed(2)}</td><td>${dur(w.avgHoldSec)}</td><td>${dur(w.avgEntrySec)}</td><td>${w.copied ? '<span class="g" title="wordt gekopieerd">●</span>' : ''}</td></tr>`).join('')
+    : '<tr><td colspan="7" class="empty" style="white-space:normal">Nog aan het verzamelen — wallets hebben eerst 8+ afgeronde trades nodig</td></tr>';
 
   // gesloten
   $('closed').innerHTML = s.closed.length ? s.closed.map(t => `<tr><td class="m">${t.id}</td><td><b>$${esc(t.symbol)}</b></td><td class="m">${t.source}</td>

@@ -4,6 +4,7 @@ export function planExit(pos, token, cfg, now = Date.now(), lastTrade = null) {
   const x = token.price / pos.entryPrice;
   const all = r => ({ tokens: pos.tokens, reason: r });
   pos.peakX = Math.max(pos.peakX || 1, x);
+  pos.minX = Math.min(pos.minX ?? 1, x);
 
   if (token.migrated) return all('gemigreerd naar AMM');
   if (token.mcapSol >= cfg.completeMcapSol) return all('curve bijna vol');

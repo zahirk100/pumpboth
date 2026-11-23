@@ -23,6 +23,7 @@ class Strategy {
     this.desc = def.desc || '';
     this.isMain = isMain;
     this.copy = def.copy ?? isMain;
+    this.copyOnly = !!def.copyOnly;
     const dataDir = isMain ? base.dataDir : path.join(base.dataDir, `s-${def.id}`);
     this.cfg = { ...base, ...(def.overrides || {}), dataDir };
     this.portfolio = new Portfolio(this.cfg);
@@ -37,7 +38,20 @@ class Strategy {
   tag(text) { return this.isMain ? text : `[${this.name}] ${text}`; }
 }
 
+const round = (v, d = 3) => (Number.isFinite(v) ? +v.toFixed(d) : null);
+
 export class Engine extends EventEmitter {
+  /** Compacte set kenmerken op het instapmoment, voor latere analyse. */
+  static features(m) {
+    return {
+      ageSec: round(m.ageSec, 1), buyers: m.uniqueBuyers, trades: m.trades, mcapSol: round(m.mcapSol, 1),
+      buySol: round(m.buySol, 2), sellSol: round(m.sellSol, 2), ratio: round(m.ratio, 2), netInflow: round(m.netInflow, 2),
+      top10Pct: round(m.top10Pct, 1), devHoldPct: round(m.devHoldPct, 1), sniperPct: round(m.sniperPct, 1),
+      drawFromPeakPct: round(m.drawFromPeakPct, 1), topBuyerSharePct: round(m.topBuyerSharePct, 1),
+      windowBuyers: m.windowBuyers, chasePct: round(m.chasePct, 1),
+    };
+  }
+
   constructor(cfg, { feed, executor, reporter, solPrice }) {
     super();
     this.cfg = cfg;
@@ -47,7 +61,9 @@ export class Engine extends EventEmitter {
     this.sol = solPrice;
     this.tokens = new Map();
     this.registry = new Registry();
+    this.staticCopy = new Set(cfg.copyWallets);
     this.copySet = new Set(cfg.copyWallets);
+    this.smartWallets = [];
     const defs = cfg.strategies?.length ? cfg.strategies : [{ id: 'streng', name: 'Streng' }];
     this.strategies = defs.map((d, i) => new Strategy(d, cfg, i === 0));
     this.main = this.strategies[0];
@@ -198,7 +214,7 @@ export class Engine extends EventEmitter {
       return;
     }
     this.budgetWarned = false;
-    for (const st of this.strategies) st.st.set(ev.mint, { status: 'watching' });
+    for (const st of this.strategies) if (!st.copyOnly) st.st.set(ev.mint, { status: 'watching' });
     this.feed.watchTokens([ev.mint]);
     if (this.strategies.some(st => st.cfg.requireSocials)) fetchSocials(ev.uri, this.cfg.metadataTimeoutMs).then(v => { t.socials = v; });
   }
@@ -241,7 +257,7 @@ export class Engine extends EventEmitter {
       const pos = s.portfolio.positions.get(ev.mint);
       if (pos) {
         pos.lastVSol = t.vSol; pos.lastVTokens = t.vTokens;
-        if (isCopy && ev.side === 'sell' && pos.source === 'copy') { this.#sell(s, t, pos.tokens, 'copy-wallet verkoopt'); continue; }
+        if (isCopy && ev.side === 'sell' && pos.source === 'copy' && (!pos.copiedFrom || pos.copiedFrom === ev.trader)) { this.#sell(s, t, pos.tokens, 'gekopieerde wallet verkoopt'); continue; }
         this.evaluateExit(s, t, ev);
         continue;
       }
@@ -253,7 +269,7 @@ export class Engine extends EventEmitter {
         this.onCopySignal(s, t, ev);
         continue;
       }
-      if (s.st.get(ev.mint)?.status === 'watching') this.evaluateEntry(s, t);
+      if (!s.copyOnly && s.st.get(ev.mint)?.status === 'watching') this.evaluateEntry(s, t);
     }
   }
 
@@ -268,6 +284,9 @@ export class Engine extends EventEmitter {
 
   // ── COPY TRADER ──────────────────────────────────────────
   onCopySignal(s, t, ev) {
+    if (t.status === 'rejected') return;
+    if (s.portfolio.positions.has(t.mint) || s.inflight.has(t.mint)) return;
+    s.st.set(t.mint, { ...(s.st.get(t.mint) || {}), status: 'watching', copiedFrom: ev.trader });
     const m = t.metrics(ev.ts);
     const b = botFilter(t, m, s.cfg);
     if (!b.ok && b.fatal) return s.isMain && this.rep.log('block', `Copy overgeslagen: ${b.reason}`, { mint: t.mint });
@@ -331,7 +350,10 @@ export class Engine extends EventEmitter {
     }
     s.c.buys++;
     st.status = 'entered';
-    const pos = P.open(t, res, { source, score });
+    s.st.set(t.mint, st);
+    if (t.status !== 'watching') { t.status = 'watching'; t.doneAt = undefined; }
+    this.feed.watchTokens([t.mint]);
+    const pos = P.open(t, res, { source, score, features: Engine.features(m), copiedFrom: st.copiedFrom || null });
     const detail = source === 'copy' ? 'copy trade' :
       `score ${score} · ${m.uniqueBuyers} kopers · ratio ${m.ratio.toFixed(1)} · +${m.netInflow.toFixed(1)} SOL`;
     this.rep.log('buy', s.tag(`$${t.symbol} ${size.toFixed(3)} SOL @ ${(t.mcapSol * this.sol.usd / 1000).toFixed(1)}k mcap · ${detail}`), {
@@ -465,6 +487,8 @@ export class Engine extends EventEmitter {
     return {
       now, demo: this.cfg.demo, startedAt: P.startedAt,
       feed: { ...this.feed.stats, subscribed: this.feed.tokens.size },
+      research: this.research?.summary() || null,
+      wallets: this.wallets ? { ...this.wallets.summary(), top: this.wallets.top.slice(0, 10).map(w => ({ ...w, copied: this.copySet.has(w.addr) })) } : null,
       solUsd: this.sol.usd, solLive: this.sol.live, feedUp: this.feed.connected,
       selected: s.id, selectedName: s.name, strategies,
       equity: eq, cash: P.cash, startBalance: P.startBalance, feesPaid: P.feesPaid,
@@ -476,11 +500,27 @@ export class Engine extends EventEmitter {
       config: {
         latencyMs: s.cfg.latencyMs, riskPerTradePct: s.cfg.riskPerTradePct, stopLossPct: s.cfg.stopLossPct,
         dailyMaxDrawdownPct: s.cfg.dailyMaxDrawdownPct, takeProfits: s.cfg.takeProfits,
-        maxOpenPositions: s.cfg.maxOpenPositions, copyWallets: s.copy ? this.copySet.size : 0,
+        maxOpenPositions: s.cfg.maxOpenPositions, copyWallets: s.copy ? this.copySet.size : 0, copyOnly: s.copyOnly,
         minUniqueBuyers: s.cfg.minUniqueBuyers, minMcapSol: s.cfg.minMcapSol, maxMcapSol: s.cfg.maxMcapSol,
         hasFeedKey: Boolean(this.cfg.feedApiKey) || this.cfg.demo || this.cfg.feedMode !== 'pumpportal', maxTradeMsgsPerDay: this.cfg.maxTradeMsgsPerDay,
       },
     };
+  }
+
+  /** Nieuwe ranglijst van slimme wallets → copy-set bijwerken. */
+  setSmartWallets(addrs) {
+    this.smartWallets = addrs;
+    const next = new Set([...this.staticCopy, ...addrs]);
+    const added = [...next].filter(a => !this.copySet.has(a));
+    const removed = [...this.copySet].filter(a => !next.has(a));
+    this.copySet = next;
+    if (added.length) this.feed.watchAccounts(added);
+    if (removed.length) this.feed.unwatchAccounts?.(removed);
+    if (added.length || removed.length) this.rep.log('info', `Smart money: ${next.size} wallets gevolgd (${added.length} nieuw, ${removed.length} eraf)`);
+  }
+
+  allClosed() {
+    return this.strategies.flatMap(s => s.portfolio.closed.map(c => ({ strategy: s.id, ...c })));
   }
 
   setPaused(v) {

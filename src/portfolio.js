@@ -58,8 +58,9 @@ export class Portfolio {
       id: ++this.seq, mint: token.mint, symbol: token.symbol, name: token.name,
       openedAt: Date.now(), entryPrice: fill.fillPrice, entryMcapSol: token.mcapSol,
       costSol: fill.costSol, initialTokens: fill.tokens, tokens: fill.tokens,
-      realizedSol: 0, tpIndex: 0, peakX: 1, source: meta.source, score: meta.score ?? null,
+      realizedSol: 0, tpIndex: 0, peakX: 1, minX: 1, source: meta.source, score: meta.score ?? null,
       lastVSol: token.vSol, lastVTokens: token.vTokens, exits: [],
+      features: meta.features || null, copiedFrom: meta.copiedFrom || null,
     };
     this.positions.set(token.mint, pos);
     return pos;
@@ -79,8 +80,9 @@ export class Portfolio {
     const rec = {
       id: pos.id, mint, symbol: pos.symbol, source: pos.source, openedAt: pos.openedAt, closedAt: Date.now(),
       costSol: pos.costSol, returnSol: pos.realizedSol, pnlSol: pos.realizedSol - pos.costSol,
-      x: pos.realizedSol / pos.costSol, peakX: pos.peakX, exitReason: reason,
-      exits: pos.exits.map(e => e.reason),
+      x: pos.realizedSol / pos.costSol, peakX: pos.peakX, minX: pos.minX ?? null, exitReason: reason,
+      exits: pos.exits.map(e => e.reason), entryMcapSol: pos.entryMcapSol,
+      features: pos.features || null, copiedFrom: pos.copiedFrom || null,
     };
     this.closed.push(rec);
     return rec;

@@ -10,6 +10,8 @@ import { Reporter } from './reporter.js';
 import { SolPrice } from './solPrice.js';
 import { Engine } from './engine.js';
 import { startServer } from './server.js';
+import { Research } from './research.js';
+import { WalletTracker } from './wallets.js';
 
 const demo = process.argv.includes('--demo');
 const cfg = loadConfig({ demo });
@@ -40,6 +42,21 @@ console.log(`\n  🌙 NIGHT DESK ${demo ? '— DEMO (synthetische markt)' : '—
 console.log(`  Dashboard: http://${cfg.host === '0.0.0.0' ? 'localhost' : cfg.host}:${cfg.port}${cfg.dashboardPassword ? ' (met wachtwoord)' : ''}\n`);
 
 engine.start();
+
+// Onderzoek + slimme wallets draaien op de volledige marktstroom (alleen PumpAPI levert die)
+const research = new Research(cfg, { registry: engine.registry });
+const wallets = new WalletTracker(cfg);
+engine.research = research;
+engine.wallets = wallets;
+feed.on('raw', ev => { try { research.onRaw(ev); wallets.onRaw(ev); } catch (e) { reporter.log('fail', `Onderzoek: ${e.message}`); } });
+setInterval(() => { try { research.tick(); } catch (e) { reporter.log('fail', `Onderzoek: ${e.message}`); } }, 2000);
+const refreshSmart = () => {
+  wallets.tick();
+  engine.setSmartWallets(wallets.top.slice(0, cfg.smartCopyTop).map(w => w.addr));
+};
+setTimeout(refreshSmart, 5000);
+setInterval(refreshSmart, 60_000);
+setInterval(() => wallets.save(), 10 * 60_000);
 if (!demo && cfg.feedMode === 'pumpportal' && !cfg.feedApiKey) reporter.log('guard', 'Geen PUMPPORTAL_API_KEY ingesteld — PumpPortal stuurt dan geen trades, alleen nieuwe tokens. Zie README.');
 if (!demo && cfg.feedMode !== 'pumpportal') reporter.log('info', `Databron: PumpAPI (gratis)${cfg.feedApiKey && cfg.feedMode !== 'pumpapi' ? ' · reserve: PumpPortal' : ' · geen reserve (geen PumpPortal-key)'}`);
 const server = startServer(engine, cfg);
@@ -51,6 +68,7 @@ server.on('error', e => {
 const shutdown = () => {
   console.log('\nAfsluiten — staat opslaan…');
   engine.stop();
+  wallets.save();
   solPrice.stop();
   server.close();
   mock?.close();

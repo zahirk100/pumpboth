@@ -117,11 +117,14 @@ export class FirehoseFeed extends EventEmitter {
       if (ev.signature) this.createSigs.set(ev.signature, ev.ts);
       this.stats.creates++; this.stats.lastCreateAt = ev.ts;
       this.emit('create', ev);
+      this.emit('raw', ev);
       return;
     }
     // de dev-buy zit al in het create-bericht; niet dubbel tellen
     if (ev.signature && this.createSigs.has(ev.signature)) return;
     if (!(ev.vSol > 0 && ev.vTokens > 0)) { this.#sample(m); return; }
+    // 'raw' = ALLE pump-trades (voor onderzoek en wallet-ranglijst); 'trade' alleen wat de engine volgt
+    this.emit('raw', ev);
     if (this.tokens.has(ev.mint) || this.accounts.has(ev.trader)) this.emit('trade', ev);
   }
 
@@ -137,4 +140,5 @@ export class FirehoseFeed extends EventEmitter {
   unwatchTokens(mints) { for (const m of mints) this.tokens.delete(m); }
   forceUnwatch(mint) { this.tokens.delete(mint); }
   watchAccounts(wallets) { for (const w of wallets) this.accounts.add(w); }
+  unwatchAccounts(wallets) { for (const w of wallets) this.accounts.delete(w); }
 }

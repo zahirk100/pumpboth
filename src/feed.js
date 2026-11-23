@@ -221,6 +221,12 @@ export class Feed extends EventEmitter {
     if (rm.length) this.#sendKeys('unsubscribeTokenTrade', rm);
   }
 
+  unwatchAccounts(wallets) {
+    const rm = wallets.filter(w => this.accounts.has(w));
+    rm.forEach(w => this.accounts.delete(w));
+    if (rm.length) this.#sendKeys('unsubscribeAccountTrade', rm);
+  }
+
   watchAccounts(wallets) {
     const add = wallets.filter(w => !this.accounts.has(w));
     add.forEach(w => this.accounts.add(w));
