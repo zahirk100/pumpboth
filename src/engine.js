@@ -261,7 +261,7 @@ export class Engine extends EventEmitter {
         this.evaluateExit(s, t, ev);
         continue;
       }
-      if (isCopy && ev.side === 'buy' && s.copy && ev.solAmount >= s.cfg.copyMinSol) {
+      if (isCopy && ev.side === 'buy' && s.copy && (this.staticCopy.has(ev.trader) || s.allowed?.has(ev.trader)) && ev.solAmount >= s.cfg.copyMinSol) {
         if (!copyLogged) {
           copyLogged = true; this.c.copySignals++;
           this.rep.log('info', `Copy-signaal: ${short(ev.trader)} koopt $${t.symbol} voor ${ev.solAmount.toFixed(2)} SOL`, { mint: t.mint });
@@ -500,17 +500,27 @@ export class Engine extends EventEmitter {
       config: {
         latencyMs: s.cfg.latencyMs, riskPerTradePct: s.cfg.riskPerTradePct, stopLossPct: s.cfg.stopLossPct,
         dailyMaxDrawdownPct: s.cfg.dailyMaxDrawdownPct, takeProfits: s.cfg.takeProfits,
-        maxOpenPositions: s.cfg.maxOpenPositions, copyWallets: s.copy ? this.copySet.size : 0, copyOnly: s.copyOnly,
+        maxOpenPositions: s.cfg.maxOpenPositions, copyWallets: s.copy ? (s.allowed?.size || 0) + this.staticCopy.size : 0, copyOnly: s.copyOnly,
         minUniqueBuyers: s.cfg.minUniqueBuyers, minMcapSol: s.cfg.minMcapSol, maxMcapSol: s.cfg.maxMcapSol,
         hasFeedKey: Boolean(this.cfg.feedApiKey) || this.cfg.demo || this.cfg.feedMode !== 'pumpportal', maxTradeMsgsPerDay: this.cfg.maxTradeMsgsPerDay,
       },
     };
   }
 
-  /** Nieuwe ranglijst van slimme wallets → copy-set bijwerken. */
-  setSmartWallets(addrs) {
-    this.smartWallets = addrs;
-    const next = new Set([...this.staticCopy, ...addrs]);
+  /**
+   * Nieuwe ranglijst van slimme wallets. Elke copy-strategie kiest daaruit met haar
+   * eigen eisen (rondes, winrate, houdtijd…). Strings = altijd kopiëren (tests/handmatig).
+   */
+  setSmartWallets(list) {
+    const ok = (w, c) => typeof w === 'string' || (w.rounds >= c.smartMinRounds && w.winRate >= c.smartMinWinRate &&
+      w.realized >= c.smartMinProfitSol && w.avgEntrySec >= c.smartMinEntrySec && w.avgHoldSec >= c.smartMinHoldSec);
+    const addr = w => (typeof w === 'string' ? w : w.addr);
+    for (const s of this.strategies) {
+      if (!s.copy) continue;
+      s.allowed = new Set(list.filter(w => ok(w, s.cfg)).slice(0, s.cfg.smartCopyTop).map(addr));
+    }
+    this.smartWallets = list.map(addr);
+    const next = new Set([...this.staticCopy, ...this.strategies.flatMap(s => [...(s.allowed || [])])]);
     const added = [...next].filter(a => !this.copySet.has(a));
     const removed = [...this.copySet].filter(a => !next.has(a));
     this.copySet = next;

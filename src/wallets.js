@@ -78,11 +78,10 @@ export class WalletTracker {
       for (const [a] of drop) this.w.delete(a);
     }
     if (this.creators.size > 200_000) this.creators = new Set([...this.creators].slice(-100_000));
-    this.top = this.rank();
+    this.top = this.rank(100);
   }
 
-  rank(limit = 25) {
-    const c = this.cfg;
+  rank(limit = 100, c = this.cfg) {
     const out = [];
     for (const [addr, w] of this.w) {
       if (w.rounds < c.smartMinRounds) continue;

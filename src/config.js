@@ -116,24 +116,22 @@ export const defaults = {
   // virtueel saldo. 'overrides' overschrijft de instellingen hierboven.
   // De eerste is de hoofdstrategie (Telegram-meldingen, copy trading).
   strategies: [
-    { id: 'streng', name: 'Streng', desc: 'Basis: brede vraag, strenge filters', copy: false },
-    { id: 'los', name: 'Losser', desc: 'Eerder instappen met minder bewijs',
-      overrides: { minUniqueBuyers: 8, minTrades: 12, minAgeSec: 12, minNetInflowSol: 1, minBuySellRatio: 1.3, minMcapSol: 33, maxTop10Pct: 40 } },
-    { id: 'snel', name: 'Snelle winst', desc: 'Zelfde instap, snel winst pakken en krap stoppen',
-      overrides: { takeProfits: [{ x: 1.5, sell: 50 }, { x: 2.5, sell: 30 }], stopLossPct: 15, trailingStopPct: 20, stallSec: 120, stallMinGainPct: 5 } },
-    { id: 'laat', name: 'Laat-instapper', desc: 'Alleen tokens die al bewezen hebben te stijgen',
-      overrides: { minAgeSec: 60, maxAgeSec: 420, minUniqueBuyers: 40, minTrades: 80, minMcapSol: 90, maxMcapSol: 300, minNetInflowSol: 4, maxDrawFromPeakPct: 20 } },
-    { id: 'scalp', name: 'Scalper', desc: 'Veel trades: vroeg in, kleine winst pakken, binnen minuten eruit',
-      overrides: { minAgeSec: 8, minUniqueBuyers: 6, minTrades: 8, minNetInflowSol: 0.5, minBuySellRatio: 1.2, minMcapSol: 30, maxTop10Pct: 45,
-        takeProfits: [{ x: 1.25, sell: 60 }, { x: 1.6, sell: 40 }], stopLossPct: 10, trailingStopPct: 12,
-        stallSec: 45, stallMinGainPct: 5, maxHoldMin: 4, maxOpenPositions: 5, riskPerTradePct: 6 } },
-    { id: 'turbo', name: 'Turbo', desc: 'Maximaal veel trades: na seconden in, +15% pakken, binnen 90s eruit',
-      overrides: { minAgeSec: 4, minUniqueBuyers: 4, minTrades: 5, minNetInflowSol: 0.3, minBuySellRatio: 1.1, minMcapSol: 29, maxTop10Pct: 50, maxDrawFromPeakPct: 35,
-        takeProfits: [{ x: 1.15, sell: 70 }, { x: 1.35, sell: 30 }], stopLossPct: 8, trailingStopPct: 10,
-        stallSec: 30, stallMinGainPct: 4, maxHoldMin: 1.5, maxOpenPositions: 8, riskPerTradePct: 5, lossStreakPause: 8, lossStreakCooldownMin: 10 } },
-    { id: 'smart', name: 'Smart money', desc: 'Kopieert automatisch de best presterende wallets', copy: true, copyOnly: true,
+    // Controle: de oorspronkelijke momentum-aanpak, om te blijven meten.
+    { id: 'streng', name: 'Streng (controle)', desc: 'Momentum met strenge filters — referentie', copy: false },
+    // Onderzoek 23-11 (18.000 metingen, 280 trades): na élk momentum-kenmerk is de kans op
+    // eerst +30% vóór −20% 40,1% — exact wat bij toeval hoort. Momentum heeft geen voorsprong;
+    // Losser, Snelle winst, Scalper, Turbo en Laat-instapper zijn daarom gestopt.
+    // Alleen het kopiëren van wallets kwam in de buurt van break-even. Daar testen we nu op door:
+    { id: 'smart', name: 'Smart money', desc: 'Kopieert de top-10 wallets, stop −30%', copy: true, copyOnly: true,
       overrides: { copyMinSol: 0.2, copySizeFactor: 1, maxOpenPositions: 5, stopLossPct: 30, stallSec: 900, maxHoldMin: 45, maxMcapSol: 400,
         takeProfits: [{ x: 2, sell: 40 }, { x: 4, sell: 30 }, { x: 8, sell: 20 }], trailingStopPct: 35 } },
+    { id: 'smart_nostop', name: 'Smart · volg de wallet', desc: 'Zelfde wallets, maar verkoopt pas als de wallet verkoopt (noodstop −60%)', copy: true, copyOnly: true,
+      overrides: { copyMinSol: 0.2, copySizeFactor: 1, maxOpenPositions: 5, stopLossPct: 60, stallSec: 3600, maxHoldMin: 30, maxMcapSol: 400,
+        staleSec: 600, takeProfits: [{ x: 3, sell: 50 }], trailingStopPct: 50 } },
+    { id: 'smart_strict', name: 'Smart · alleen de beste', desc: 'Strengere wallet-eisen: 15+ rondes, 60%+ winst, houdt ≥90s vast', copy: true, copyOnly: true,
+      overrides: { copyMinSol: 0.2, copySizeFactor: 1, maxOpenPositions: 5, stopLossPct: 40, stallSec: 1800, maxHoldMin: 45, maxMcapSol: 400,
+        smartMinRounds: 15, smartMinWinRate: 0.6, smartMinHoldSec: 90, smartMinProfitSol: 1, smartCopyTop: 10,
+        takeProfits: [{ x: 2, sell: 40 }, { x: 4, sell: 30 }], trailingStopPct: 40 } },
   ],
 
   // ── Dashboard ─────────────────────────────────────────────

@@ -52,7 +52,7 @@ feed.on('raw', ev => { try { research.onRaw(ev); wallets.onRaw(ev); } catch (e) 
 setInterval(() => { try { research.tick(); } catch (e) { reporter.log('fail', `Onderzoek: ${e.message}`); } }, 2000);
 const refreshSmart = () => {
   wallets.tick();
-  engine.setSmartWallets(wallets.top.slice(0, cfg.smartCopyTop).map(w => w.addr));
+  engine.setSmartWallets(wallets.top);
 };
 setTimeout(refreshSmart, 5000);
 setInterval(refreshSmart, 60_000);
