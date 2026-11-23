@@ -15,12 +15,16 @@ export function normalize(m, now = Date.now()) {
     const q = Number(m.vQuoteInBondingCurve);
     vSol = q > 1e6 ? q / 10 ** (m.quoteTokenDecimals ?? 9) : q; // lamports → SOL
   }
+  let vTokens = num(m.vTokensInBondingCurve);
+  // Na migratie (PumpSwap / pump-amm) komen echte pool-reserves i.p.v. curve-reserves
+  if (!(vSol > 0) && num(m.solInPool) > 0) vSol = num(m.solInPool);
+  if (!(vTokens > 0) && num(m.tokensInPool) > 0) vTokens = num(m.tokensInPool);
   const base = {
     mint: m.mint,
     signature: m.signature || '',
     trader: m.traderPublicKey || m.txSigner || '',
     vSol,
-    vTokens: num(m.vTokensInBondingCurve),
+    vTokens,
     mcapSol: num(m.marketCapSol ?? m.marketCapQuote),
     pool: m.pool || 'pump',
     ts: now,
@@ -160,6 +164,12 @@ export class Feed extends EventEmitter {
     const add = mints.filter(m => !this.tokens.has(m));
     add.forEach(m => this.tokens.add(m));
     if (add.length) this.#sendKeys('subscribeTokenTrade', add);
+  }
+
+  /** Afmelden, ook als we denken dat we al afgemeld zijn (berichten blijven komen = geld). */
+  forceUnwatch(mint) {
+    this.tokens.delete(mint);
+    this.#send({ method: 'unsubscribeTokenTrade', keys: [mint] });
   }
 
   unwatchTokens(mints) {

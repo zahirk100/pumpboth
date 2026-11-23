@@ -146,6 +146,13 @@ export class Engine extends EventEmitter {
     }
     if (!t) {
       this.c.untracked = (this.c.untracked || 0) + 1;
+      if (!isCopy) this.#stopPaying(ev.mint);
+      return;
+    }
+    // Berichten voor een token waar we niets meer mee doen kosten geld → opnieuw afmelden
+    if (!isCopy && !this.portfolio.positions.has(ev.mint) && !['watching', 'buying'].includes(t.status)) {
+      this.c.wasted = (this.c.wasted || 0) + 1;
+      this.#stopPaying(ev.mint);
       return;
     }
     t.applyTrade(ev);
@@ -158,6 +165,15 @@ export class Engine extends EventEmitter {
     }
     if (isCopy && ev.side === 'buy' && ev.solAmount >= this.cfg.copyMinSol) return this.onCopySignal(t, ev);
     if (t.status === 'watching') this.evaluateEntry(t);
+  }
+
+  #stopPaying(mint) {
+    this.resent ??= new Map();
+    const last = this.resent.get(mint) || 0;
+    if (Date.now() - last < 10_000) return;
+    this.resent.set(mint, Date.now());
+    if (this.resent.size > 5000) this.resent.clear();
+    this.feed.forceUnwatch(mint);
   }
 
   // ── COPY TRADER ──────────────────────────────────────────

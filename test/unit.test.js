@@ -29,6 +29,11 @@ test('feed: normaliseert PumpPortal create/trade/migrate', () => {
     vTokensInBondingCurve: 1.02e9, vQuoteInBondingCurve: 31_000_000_000 });
   assert.equal(t.kind, 'trade'); assert.equal(t.side, 'sell'); assert.equal(t.vSol, 31);
   assert.equal(normalize({ signature: 'z', mint: MINT, txType: 'migrate', pool: 'pump-amm' }).kind, 'migration');
+  // echt PumpPortal-bericht na migratie (pump-amm): pool-reserves i.p.v. curve-reserves
+  const amm = normalize({ signature: 'a', mint: MINT, traderPublicKey: 'x', txType: 'buy', tokenAmount: 1329148.43, solAmount: 0.562,
+    tokensInPool: 203303246.012162, solInPool: 68.962173526, marketCapSol: 339.208, pool: 'pump-amm' });
+  assert.equal(amm.kind, 'trade'); assert.equal(amm.pool, 'pump-amm');
+  assert.ok(Math.abs(amm.vSol / amm.vTokens * 1e9 - 339.2) < 0.1);
   assert.equal(normalize({ message: 'Successfully subscribed' }), null);
 });
 
