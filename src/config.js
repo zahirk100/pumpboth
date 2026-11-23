@@ -11,7 +11,7 @@ const PROJECT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 export const defaults = {
   // ── Account ────────────────────────────────────────────────
-  startBalanceSol: 0.5,          // virtueel startkapitaal
+  startBalanceSol: 1.3,          // virtueel startkapitaal (≈ $100, gelijk aan het geplande echte budget)
 
   // ── Databronnen ───────────────────────────────────────────
   firehoseUrl: 'wss://stream.pumpapi.io/',   // primaire bron: gratis, alles
