@@ -54,6 +54,11 @@ export function startServer(engine, cfg) {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
       return res.end(html());
     }
+    if (req.method === 'GET' && url.pathname === '/api/debug') {
+      const f = engine.feed;
+      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+      return res.end(JSON.stringify({ stats: f.stats, subscribed: f.tokens.size, counters: engine.c, samples: f.samples }, null, 2));
+    }
     if (req.method === 'GET' && url.pathname === '/api/state') return json(res, 200, engine.snapshot());
     if (req.method === 'GET' && url.pathname === '/api/stream') {
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive', 'x-accel-buffering': 'no' });

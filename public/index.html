@@ -13,6 +13,10 @@
     --sans: "Inter", -apple-system, "Segoe UI", system-ui, sans-serif;
   }
   * { box-sizing: border-box; }
+  html, body { overflow-x: hidden; }
+  .tbl { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .row span:last-child { overflow-wrap: anywhere; min-width: 0; }
+  .card { min-width: 0; }
   body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); }
   .wrap { max-width: 1240px; margin: 0 auto; padding: 18px; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; }
@@ -38,7 +42,12 @@
 
   .grid { display: grid; gap: 14px; }
   .g2 { grid-template-columns: 1fr 1fr; } .g3 { grid-template-columns: 1.1fr 1fr 1fr; }
-  @media (max-width: 860px) { .g2, .g3 { grid-template-columns: 1fr; } .big { font-size: 30px; } }
+  @media (max-width: 860px) {
+    .g2, .g3 { grid-template-columns: 1fr; } .big { font-size: 30px; }
+    .wrap { padding: 10px; } .right { margin-left: 0; text-align: left; width: 100%; } .btns { justify-content: flex-start; }
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .row { grid-template-columns: 54px 50px minmax(0, 1fr); font-size: 11px; }
+  }
   canvas { width: 100%; display: block; }
 
   /* agent orbit */
@@ -56,9 +65,10 @@
   .agent.hot { border-color: var(--red); box-shadow: 0 0 0 3px var(--red-bg); }
   .agent.hotg { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-bg); }
   @media (max-width: 860px) {
-    .orbit { height: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .orbit { height: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .agent > div:nth-child(2) { min-width: 0; } .agent i { max-width: 100%; } .agent b { font-size: 11px; }
     .orbit svg, .core { display: none; }
-    .agent { position: static; transform: none; width: auto; }
+    .agent { position: static; transform: none; width: auto; min-width: 0; padding: 7px 8px; gap: 7px; }
   }
 
   /* log */
@@ -122,7 +132,7 @@
       <div class="card">
         <div class="label" id="poslabel">Positie <span class="sub" id="possub"></span></div>
         <canvas id="pchart" height="230"></canvas>
-        <table class="pos"><thead><tr><th>token</th><th>bron</th><th>inleg</th><th>waarde</th><th>P/L</th><th>x</th></tr></thead><tbody id="ptab"></tbody></table>
+        <div class="tbl"><table class="pos"><thead><tr><th>token</th><th>bron</th><th>inleg</th><th>waarde</th><th>P/L</th><th>x</th></tr></thead><tbody id="ptab"></tbody></table></div>
         <div class="empty" id="pempty">Nog geen open posities</div>
       </div>
       <div class="card">
@@ -142,13 +152,13 @@
       </div>
       <div class="card">
         <div class="label">Watchlist <span class="sub" id="watchsub"></span></div>
-        <table><thead><tr><th>token</th><th>leeftijd</th><th>mcap</th><th>wacht op</th></tr></thead><tbody id="watch"></tbody></table>
+        <div class="tbl"><table><thead><tr><th>token</th><th>leeftijd</th><th>mcap</th><th>wacht op</th></tr></thead><tbody id="watch"></tbody></table></div>
       </div>
     </div>
 
     <div class="card">
       <div class="label">Gesloten trades</div>
-      <table><thead><tr><th>#</th><th>token</th><th>bron</th><th>geopend</th><th>duur</th><th>inleg</th><th>terug</th><th>P/L</th><th>x</th><th>piek</th><th>exit</th></tr></thead><tbody id="closed"></tbody></table>
+      <div class="tbl"><table><thead><tr><th>#</th><th>token</th><th>bron</th><th>geopend</th><th>duur</th><th>inleg</th><th>terug</th><th>P/L</th><th>x</th><th>piek</th><th>exit</th></tr></thead><tbody id="closed"></tbody></table></div>
     </div>
   </div>
   <div class="warn">Paper trading — er wordt geen echt geld gebruikt. Resultaten uit demo-modus zeggen niets over de echte markt.</div>

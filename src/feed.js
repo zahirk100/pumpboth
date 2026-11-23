@@ -60,6 +60,7 @@ export class Feed extends EventEmitter {
     this.lastMsg = Date.now();
     this.stopped = false;
     this.seen = new Set();
+    this.samples = [];   // laatste afwijkende berichten, voor /api/debug
     this.seenOld = new Set();
     this.stats = { messages: 0, reconnects: 0, unknown: 0, creates: 0, lastCreateAt: 0, connectedAt: 0, tradeMsgsToday: 0, tradeDay: '' };
   }
@@ -113,6 +114,7 @@ export class Feed extends EventEmitter {
       const ev = normalize(m, this.lastMsg);
       if (!ev) {
         // Bevestigingen ({message: ...}) zijn normaal; iets met een mint dat we niet snappen niet.
+        if (m && m.mint) this.#sample('onbekend', m);
         if (m && m.mint && ++this.stats.unknown <= 3) this.log('feed', `Onbekend berichtformaat: ${JSON.stringify(m).slice(0, 300)}`);
         if (m && (m.errors || m.error)) this.log('feed', `Feed meldt fout: ${JSON.stringify(m.errors || m.error).slice(0, 200)}`);
         return;
@@ -123,7 +125,9 @@ export class Feed extends EventEmitter {
         if (day !== this.stats.tradeDay) { this.stats.tradeDay = day; this.stats.tradeMsgsToday = 0; }
         this.stats.tradeMsgsToday++;
       }
-      if ((ev.kind === 'trade' || ev.kind === 'create') && !(ev.vSol > 0 && ev.vTokens > 0) && ++this.stats.unknown <= 3)
+      const noRes = (ev.kind === 'trade' || ev.kind === 'create') && !(ev.vSol > 0 && ev.vTokens > 0);
+      if (noRes) { this.stats.noReserves = (this.stats.noReserves || 0) + 1; this.#sample('zonder reserves', m); }
+      if (noRes && ++this.stats.unknown <= 3)
         this.log('feed', `Bericht zonder curve-reserves: ${JSON.stringify(m).slice(0, 300)}`);
       // Dezelfde trade kan binnenkomen via token- én account-abonnement
       if (ev.signature) {
@@ -145,6 +149,11 @@ export class Feed extends EventEmitter {
     this.stats.reconnects++;
     this.retry = setTimeout(() => this.#connect(), this.backoff);
     this.backoff = Math.min(this.backoff * 2, 30000);
+  }
+
+  #sample(kind, m) {
+    this.samples.push({ ts: Date.now(), kind, msg: m });
+    if (this.samples.length > 8) this.samples.shift();
   }
 
   watchTokens(mints) {
