@@ -63,6 +63,9 @@ export const defaults = {
   minMcapSol: 40,
   maxMcapSol: 200,
   maxDrawFromPeakPct: 25,        // niet instappen als de prijs al zoveel van de top af is
+  maxTopBuyerSharePct: 35,       // max % van de koop-SOL in het venster van één wallet
+  chaseWindowSec: 10,
+  maxChasePct: 60,               // prijs in de laatste 10s meer gestegen? dan kopen we de top
 
   // ── COPY TRADER ───────────────────────────────────────────
   copyWallets: [],               // wallet-adressen om te volgen

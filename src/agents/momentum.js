@@ -8,6 +8,11 @@ export function momentum(m, cfg) {
   if (m.ratio < cfg.minBuySellRatio) return { ok: false, reason: 'te veel verkoopdruk' };
   if (m.netInflow < cfg.minNetInflowSol) return { ok: false, reason: 'te weinig instroom' };
   if (m.drawFromPeakPct > cfg.maxDrawFromPeakPct) return { ok: false, reason: 'al gedumpt van top' };
+  // Pomp door 1-2 grote wallets: die verkopen zodra wij (te laat) kopen
+  if (m.topBuyerSharePct > cfg.maxTopBuyerSharePct) return { ok: false, reason: 'één wallet pompt' };
+  if (m.windowBuyers < Math.min(cfg.minUniqueBuyers, 4)) return { ok: false, reason: 'te weinig recente kopers' };
+  // Prijs schoot net omhoog: met onze vertraging kopen we dan de top
+  if (m.chasePct > cfg.maxChasePct) return { ok: false, reason: 'te steil (top kopen)' };
 
   const clamp = x => Math.max(0, Math.min(1, x));
   const score = Math.round(100 * (

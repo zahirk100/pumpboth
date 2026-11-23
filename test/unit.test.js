@@ -67,6 +67,25 @@ test('momentum: geeft score bij gezonde flow, weigert bij verkoopdruk', () => {
   assert.equal(momentum({ ...base, mcapSol: 300 }, cfg).fatal, true);
 });
 
+test('momentum: weigert whale-pomp en het najagen van een piek', () => {
+  const base = { ageSec: 60, uniqueBuyers: 30, trades: 50, mcapSol: 80, ratio: 2.5, netInflow: 6, drawFromPeakPct: 5, top10Pct: 15, topBuyerSharePct: 20, windowBuyers: 20, chasePct: 10 };
+  assert.equal(momentum(base, cfg).ok, true);
+  assert.equal(momentum({ ...base, topBuyerSharePct: 70 }, cfg).reason, 'één wallet pompt');
+  assert.equal(momentum({ ...base, chasePct: 120 }, cfg).reason, 'te steil (top kopen)');
+});
+
+test('tracker: meet aandeel grootste koper en recente stijging', () => {
+  const t = token();
+  const now = Date.now();
+  t.trades = [];
+  t.applyTrade({ trader: 'w1', side: 'buy', tokenAmount: 1e6, solAmount: 0.1, vSol: 31, vTokens: 1.04e9, ts: now - 20_000 });
+  t.applyTrade({ trader: 'whale', side: 'buy', tokenAmount: 1e8, solAmount: 8, vSol: 39, vTokens: 0.83e9, ts: now - 3000 });
+  t.applyTrade({ trader: 'w2', side: 'buy', tokenAmount: 1e6, solAmount: 0.2, vSol: 39.2, vTokens: 0.826e9, ts: now - 1000 });
+  const m = t.metrics(now);
+  assert.ok(m.topBuyerSharePct > 90, `top ${m.topBuyerSharePct}`);
+  assert.ok(m.chasePct > 40, `chase ${m.chasePct}`);
+});
+
 test('exit planner: stop, take-profit ladder en trailing stop', () => {
   const t = token();
   const pos = { entryPrice: t.price, tokens: 1e6, initialTokens: 1e6, tpIndex: 0, openedAt: Date.now(), peakX: 1 };

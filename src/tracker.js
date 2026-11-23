@@ -97,12 +97,20 @@ export class TokenState {
 
   metrics(now = Date.now()) {
     const win = this.cfg.windowSec * 1000;
-    let buySol = 0, sellSol = 0;
+    const chaseMs = (this.cfg.chaseWindowSec || 10) * 1000;
+    let buySol = 0, sellSol = 0, priceBefore = null;
+    const perBuyer = new Map();
     for (let i = this.trades.length - 1; i >= 0; i--) {
       const t = this.trades[i];
-      if (now - t.ts > win) break;
-      if (t.side === 'buy') buySol += t.sol; else sellSol += t.sol;
+      if (priceBefore === null && now - t.ts > chaseMs) priceBefore = t.price;
+      if (now - t.ts > win) { if (priceBefore !== null) break; continue; }
+      if (t.side === 'buy') { buySol += t.sol; perBuyer.set(t.trader, (perBuyer.get(t.trader) || 0) + t.sol); }
+      else sellSol += t.sol;
     }
+    // Hoeveel van de koopdruk komt van de grootste wallet? (1-2 whales ≠ brede vraag)
+    const topBuy = perBuyer.size ? Math.max(...perBuyer.values()) : 0;
+    // Hoe hard is de prijs in de laatste ~10s gestegen? (niet de piek najagen)
+    const ref = priceBefore ?? this.series[0]?.[1] ?? this.price;
     const balances = [...this.holders.values()].sort((a, b) => b - a);
     const top10 = balances.slice(0, 10).reduce((a, b) => a + b, 0);
     let sniperTokens = 0;
@@ -121,6 +129,9 @@ export class TokenState {
       snipers: this.snipers.size,
       drawFromPeakPct: this.peakPrice > 0 ? (1 - this.price / this.peakPrice) * 100 : 0,
       devSoldPct: this.devSoldPct(),
+      topBuyerSharePct: buySol > 0 ? (topBuy / buySol) * 100 : 0,
+      windowBuyers: perBuyer.size,
+      chasePct: ref > 0 ? (this.price / ref - 1) * 100 : 0,
     };
   }
 }
