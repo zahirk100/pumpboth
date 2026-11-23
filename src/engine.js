@@ -109,6 +109,13 @@ export class Engine extends EventEmitter {
       old.status = 'expired'; old.doneAt = Date.now();
       this.feed.unwatchTokens([old.mint]);
     }
+    const used = this.feed.stats.tradeMsgsToday;
+    if (!this.cfg.demo && used >= this.cfg.maxTradeMsgsPerDay) {
+      t.status = 'expired'; t.doneAt = Date.now(); t.reason = 'databudget op';
+      if (!this.budgetWarned) { this.budgetWarned = true; this.rep.log('guard', `Databudget van vandaag op (${used.toLocaleString('nl-NL')} trade-berichten) — tot morgen alleen open posities volgen`); }
+      return;
+    }
+    this.budgetWarned = false;
     this.feed.watchTokens([ev.mint]);
     if (this.cfg.requireSocials) fetchSocials(ev.uri, this.cfg.metadataTimeoutMs).then(v => { t.socials = v; });
   }
@@ -269,6 +276,10 @@ export class Engine extends EventEmitter {
         const r = t.reason || 'geen signaal';
         this.reasons[r] = (this.reasons[r] || 0) + 1;
         this.feed.unwatchTokens([t.mint]);
+      } else if (t.status === 'watching' && t.known && (now - t.createdAt) / 1000 > this.cfg.deadAfterSec && t.buyers.size < this.cfg.deadMinBuyers) {
+        t.status = 'expired'; t.doneAt = now; this.c.expired++;
+        this.reasons['dood (geen kopers)'] = (this.reasons['dood (geen kopers)'] || 0) + 1;
+        this.feed.unwatchTokens([t.mint]);
       } else if (t.status === 'watching') {
         this.evaluateEntry(t, now);
       }
@@ -333,6 +344,7 @@ export class Engine extends EventEmitter {
         latencyMs: this.cfg.latencyMs, riskPerTradePct: this.cfg.riskPerTradePct, stopLossPct: this.cfg.stopLossPct,
         dailyMaxDrawdownPct: this.cfg.dailyMaxDrawdownPct, takeProfits: this.cfg.takeProfits,
         maxOpenPositions: this.cfg.maxOpenPositions, copyWallets: this.copySet.size,
+        hasFeedKey: Boolean(this.cfg.feedApiKey) || this.cfg.demo, maxTradeMsgsPerDay: this.cfg.maxTradeMsgsPerDay,
       },
     };
   }

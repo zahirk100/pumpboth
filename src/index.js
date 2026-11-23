@@ -30,6 +30,7 @@ console.log(`\n  🌙 NIGHT DESK ${demo ? '— DEMO (synthetische markt)' : '—
 console.log(`  Dashboard: http://${cfg.host === '0.0.0.0' ? 'localhost' : cfg.host}:${cfg.port}${cfg.dashboardPassword ? ' (met wachtwoord)' : ''}\n`);
 
 engine.start();
+if (!demo && !cfg.feedApiKey) reporter.log('guard', 'Geen PUMPPORTAL_API_KEY ingesteld — PumpPortal stuurt dan geen trades, alleen nieuwe tokens. Zie README.');
 const server = startServer(engine, cfg);
 server.on('error', e => {
   console.error(`Dashboard kon niet starten op poort ${cfg.port}: ${e.message}. Zet een andere PORT in .env`);

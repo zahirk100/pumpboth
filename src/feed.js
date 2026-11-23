@@ -61,7 +61,7 @@ export class Feed extends EventEmitter {
     this.stopped = false;
     this.seen = new Set();
     this.seenOld = new Set();
-    this.stats = { messages: 0, reconnects: 0, unknown: 0, creates: 0, lastCreateAt: 0, connectedAt: 0 };
+    this.stats = { messages: 0, reconnects: 0, unknown: 0, creates: 0, lastCreateAt: 0, connectedAt: 0, tradeMsgsToday: 0, tradeDay: '' };
   }
 
   start() {
@@ -98,7 +98,7 @@ export class Feed extends EventEmitter {
       this.stats.connectedAt = Date.now();
       this.backoff = 1000;
       this.lastMsg = Date.now();
-      this.log('feed', `Verbonden met ${this.url}`);
+      this.log('feed', `Verbonden met ${this.url.replace(/api-key=[^&]+/, 'api-key=***')}`);
       this.#send({ method: 'subscribeNewToken' });
       this.#send({ method: 'subscribeMigration' });
       if (this.tokens.size) this.#sendKeys('subscribeTokenTrade', [...this.tokens]);
@@ -114,10 +114,15 @@ export class Feed extends EventEmitter {
       if (!ev) {
         // Bevestigingen ({message: ...}) zijn normaal; iets met een mint dat we niet snappen niet.
         if (m && m.mint && ++this.stats.unknown <= 3) this.log('feed', `Onbekend berichtformaat: ${JSON.stringify(m).slice(0, 300)}`);
-        if (m && m.errors) this.log('feed', `Feed meldt fout: ${JSON.stringify(m.errors).slice(0, 200)}`);
+        if (m && (m.errors || m.error)) this.log('feed', `Feed meldt fout: ${JSON.stringify(m.errors || m.error).slice(0, 200)}`);
         return;
       }
       if (ev.kind === 'create') { this.stats.creates++; this.stats.lastCreateAt = this.lastMsg; }
+      if (ev.kind === 'trade') {
+        const day = new Date(this.lastMsg).toLocaleDateString('sv-SE');
+        if (day !== this.stats.tradeDay) { this.stats.tradeDay = day; this.stats.tradeMsgsToday = 0; }
+        this.stats.tradeMsgsToday++;
+      }
       if ((ev.kind === 'trade' || ev.kind === 'create') && !(ev.vSol > 0 && ev.vTokens > 0) && ++this.stats.unknown <= 3)
         this.log('feed', `Bericht zonder curve-reserves: ${JSON.stringify(m).slice(0, 300)}`);
       // Dezelfde trade kan binnenkomen via token- én account-abonnement

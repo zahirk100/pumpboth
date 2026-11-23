@@ -2,7 +2,7 @@
 
 Een bot die **live** alle nieuwe pump.fun-launches op Solana volgt, ze door een rij agents (filters) haalt en **met nepgeld** handelt. Hij rekent fees, vertraging en mislukte transacties net zo door als in het echt. Alles is te volgen op een live dashboard.
 
-> Er wordt **geen echt geld** gebruikt en er is **geen wallet of private key** nodig. Het doel is meten of een strategie na alle kosten winst maakt, vóórdat je er echt geld op zet.
+> Er wordt **niet met echt geld gehandeld**. Alleen de live data van PumpPortal kost een klein bedrag (zie *PumpPortal API key*). Het doel is meten of een strategie na alle kosten winst maakt, vóórdat je er echt geld op zet.
 
 ---
 
@@ -57,6 +57,16 @@ Een taalmodel doet er seconden over om te antwoorden. Op pump.fun is een token i
 
 ---
 
+## PumpPortal API key (nodig voor live data)
+
+PumpPortal stuurt sinds 1 mei 2026 alleen nog trades als je een API key hebt. Nieuwe tokens zijn gratis, maar handelsdata kost **0,01 SOL per 10.000 trade-berichten**. Die kosten worden afgeschreven van een wallet die aan je key gekoppeld is. Die wallet moet minstens 0,02 SOL bevatten.
+
+1. Ga naar pumpportal.fun en maak een API key aan. Je krijgt daarbij een nieuwe wallet. **Bewaar de private key veilig.** Gebruik deze wallet alleen voor datakosten.
+2. Zet er een klein bedrag op, bijvoorbeeld 0,1 SOL.
+3. Zet in Railway onder **Variables**: `PUMPPORTAL_API_KEY` = je key.
+
+De bot houdt de kosten in de hand. Standaard verwerkt hij maximaal 50.000 trade-berichten per dag (≈ 0,05 SOL), in te stellen met `MAX_TRADE_MSGS_PER_DAY`. Hij laat tokens zonder kopers na 45 seconden los, en volgt maximaal 40 tokens tegelijk. Het verbruik van vandaag staat op het dashboard bij NEW PAIRS.
+
 ## Instellingen
 
 Alle knoppen staan met uitleg in `src/config.js`. Wil je iets aanpassen, kopieer dan `config.example.json` naar `config.json` en zet daar alleen de waarden in die je wilt wijzigen.
@@ -69,6 +79,8 @@ Geheimen en omgevingsvariabelen gaan in `.env` (kopieer `.env.example`):
 | `DASHBOARD_PASSWORD` | Wachtwoord voor het dashboard (verplicht online) |
 | `DATA_DIR` | Map voor opslag, bijvoorbeeld `/data` op een Railway-volume |
 | `START_BALANCE_SOL` | Startkapitaal van het paper-account |
+| `PUMPPORTAL_API_KEY` | Nodig voor trade-data (zie hierboven) |
+| `MAX_TRADE_MSGS_PER_DAY` | Databudget per dag (standaard 50000 ≈ 0,05 SOL) |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | Meldingen op je telefoon. Maak een bot via @BotFather en vraag je chat-id op via @userinfobot. |
 | `COPY_WALLETS` | Komma-gescheiden wallet-adressen om te kopiëren |
 

@@ -15,7 +15,11 @@ export const defaults = {
 
   // ── Databronnen ───────────────────────────────────────────
   feedUrl: 'wss://pumpportal.fun/api/data',
-  feedSilenceReconnectSec: 60,   // geen bericht ontvangen? → opnieuw verbinden
+  feedSilenceReconnectSec: 180,  // geen bericht ontvangen? → opnieuw verbinden
+  // PumpPortal rekent sinds mei 2026 0.01 SOL per 10.000 trade-berichten (API key nodig).
+  maxTradeMsgsPerDay: 50_000,    // ≈ 0.05 SOL/dag; daarboven geen nieuwe tokens meer volgen
+  deadAfterSec: 45,              // token na zoveel sec nog < deadMinBuyers kopers → stoppen met volgen
+  deadMinBuyers: 5,
   solUsdFallback: 150,           // als de SOL-prijs niet opgehaald kan worden
 
   // ── Pump.fun curve ─────────────────────────────────────────
@@ -31,9 +35,9 @@ export const defaults = {
   jitoTipSol: 0.0001,            // MEV-bescherming per transactie
 
   // ── NEW PAIRS: welke tokens we bekijken ───────────────────
-  maxWatched: 80,                // max tegelijk gevolgde nieuwe tokens
+  maxWatched: 40,                // max tegelijk gevolgde nieuwe tokens
   minAgeSec: 20,                 // nooit eerder instappen dan dit na launch
-  maxAgeSec: 240,                // daarna stoppen met volgen als we niet instapten
+  maxAgeSec: 150,                // daarna stoppen met volgen als we niet instapten
 
   // ── CONTRACT SCAN / metadata ──────────────────────────────
   requireSocials: false,         // eisen dat metadata een X/Telegram/website heeft
@@ -125,6 +129,9 @@ export function loadConfig({ demo = false, root = PROJECT } = {}) {
   cfg.telegramChatId = process.env.TELEGRAM_CHAT_ID || '';
   if (process.env.COPY_WALLETS) cfg.copyWallets = process.env.COPY_WALLETS.split(',').map(s => s.trim()).filter(Boolean);
   if (process.env.FEED_URL) cfg.feedUrl = process.env.FEED_URL;
+  cfg.feedApiKey = process.env.PUMPPORTAL_API_KEY || '';
+  if (cfg.feedApiKey && !demo) cfg.feedUrl += (cfg.feedUrl.includes('?') ? '&' : '?') + 'api-key=' + encodeURIComponent(cfg.feedApiKey);
+  if (process.env.MAX_TRADE_MSGS_PER_DAY) cfg.maxTradeMsgsPerDay = Number(process.env.MAX_TRADE_MSGS_PER_DAY);
   if (process.env.START_BALANCE_SOL) cfg.startBalanceSol = Number(process.env.START_BALANCE_SOL);
   return cfg;
 }

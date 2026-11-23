@@ -269,7 +269,8 @@ function render(s) {
 
   // agents
   const c = s.counters, cfg = s.config;
-  agentSet('new', `launches gezien · ${c.watching} gevolgd`, c.newPairs);
+  const fm = s.feed?.tradeMsgsToday || 0;
+  agentSet('new', cfg.hasFeedKey ? `${c.watching} gevolgd · data ${fm.toLocaleString('nl-NL')}/${(cfg.maxTradeMsgsPerDay/1000).toFixed(0)}k (≈${(fm / 1e6).toFixed(3)} SOL)` : '⚠ geen PumpPortal API key → geen trades', c.newPairs);
   agentSet('scan', 'serial launchers · copycats', c.scanRejected);
   agentSet('bot', 'snipers + bundles + dev', c.botRejected);
   agentSet('mom', 'kopers · flow · ratio', c.momentumPassed);
