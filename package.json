@@ -1,0 +1,16 @@
+{
+  "name": "night-desk",
+  "version": "1.0.0",
+  "description": "Paper-trading bot voor pump.fun (Solana) met live dashboard",
+  "type": "module",
+  "main": "src/index.js",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node src/index.js",
+    "demo": "node src/index.js --demo",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "startBalanceSol": 0.5,
+  "riskPerTradePct": 4,
+  "maxOpenPositions": 3,
+  "stopLossPct": 25,
+  "minUniqueBuyers": 15,
+  "minMcapSol": 40,
+  "maxMcapSol": 200,
+  "latencyMs": 1500,
+  "requireSocials": false
+}

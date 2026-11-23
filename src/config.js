@@ -1,0 +1,130 @@
+// ─────────────────────────────────────────────────────────────
+//  NIGHT DESK — instellingen
+//  Alles wat de strategie bepaalt staat hier. Pas aan, herstart.
+//  Bedragen in SOL tenzij anders vermeld.
+// ─────────────────────────────────────────────────────────────
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const PROJECT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+export const defaults = {
+  // ── Account ────────────────────────────────────────────────
+  startBalanceSol: 0.5,          // virtueel startkapitaal
+
+  // ── Databronnen ───────────────────────────────────────────
+  feedUrl: 'wss://pumpportal.fun/api/data',
+  feedSilenceReconnectSec: 60,   // geen bericht ontvangen? → opnieuw verbinden
+  solUsdFallback: 150,           // als de SOL-prijs niet opgehaald kan worden
+
+  // ── Pump.fun curve ─────────────────────────────────────────
+  tokenSupply: 1_000_000_000,
+  curveFeePct: 1.25,             // protocol + creator fee per trade (%)
+  completeMcapSol: 400,          // rond dit punt migreert de token naar PumpSwap
+
+  // ── Executie-realisme (paper) ─────────────────────────────
+  latencyMs: 1500,               // tijd tussen besluit en landing on-chain
+  maxSlippagePct: 15,            // prijs verder weg dan dit → order faalt
+  txFailRate: 0.06,              // kans dat een tx niet landt (fee ben je wel kwijt)
+  txFeeSol: 0.0003,              // netwerk + priority fee per transactie
+  jitoTipSol: 0.0001,            // MEV-bescherming per transactie
+
+  // ── NEW PAIRS: welke tokens we bekijken ───────────────────
+  maxWatched: 80,                // max tegelijk gevolgde nieuwe tokens
+  minAgeSec: 20,                 // nooit eerder instappen dan dit na launch
+  maxAgeSec: 240,                // daarna stoppen met volgen als we niet instapten
+
+  // ── CONTRACT SCAN / metadata ──────────────────────────────
+  requireSocials: false,         // eisen dat metadata een X/Telegram/website heeft
+  metadataTimeoutMs: 4000,
+  maxCreatorLaunches6h: 2,       // creator die vaker lanceert = serial rugger
+  maxSameSymbol30m: 2,           // copycat-tickers
+
+  // ── BOT FILTER: snipers & bundles ─────────────────────────
+  maxDevBuyPct: 8,               // % van supply dat de dev bij launch koopt
+  bundleWindowMs: 2000,          // kopers binnen dit venster na create = snipers
+  maxSniperPct: 15,              // max % supply in handen van snipers
+  maxTop10Pct: 32,               // max % supply bij top-10 holders (excl. curve)
+  maxDevHoldPct: 6,              // dev mag niet meer dan dit vasthouden bij entry
+
+  // ── MOMENTUM: instapsignaal ───────────────────────────────
+  minUniqueBuyers: 15,
+  minTrades: 25,
+  windowSec: 60,                 // venster voor flow-metingen
+  minBuySellRatio: 1.6,          // SOL gekocht / SOL verkocht in het venster
+  minNetInflowSol: 2,
+  minMcapSol: 40,
+  maxMcapSol: 200,
+  maxDrawFromPeakPct: 25,        // niet instappen als de prijs al zoveel van de top af is
+
+  // ── COPY TRADER ───────────────────────────────────────────
+  copyWallets: [],               // wallet-adressen om te volgen
+  copyMinSol: 0.5,               // alleen kopiëren als zij minstens dit kopen
+  copySizeFactor: 0.5,           // positie t.o.v. normale grootte
+
+  // ── SIZER ─────────────────────────────────────────────────
+  riskPerTradePct: 4,            // % van equity per trade
+  minPositionSol: 0.01,
+  maxPositionSol: 0.25,
+
+  // ── DRAWDOWN GUARD ────────────────────────────────────────
+  maxOpenPositions: 3,
+  dailyMaxDrawdownPct: 25,       // pauze tot de volgende dag
+  lossStreakPause: 5,            // na zoveel verliezen op rij…
+  lossStreakCooldownMin: 20,     // …zoveel minuten pauze
+  hardFloorPct: 40,              // equity onder dit % van start → volledig stoppen
+
+  // ── EXIT PLANNER ──────────────────────────────────────────
+  stopLossPct: 25,
+  takeProfits: [                 // x = veelvoud van instapprijs, sell = % van oorspronkelijke tokens
+    { x: 2, sell: 40 },
+    { x: 4, sell: 30 },
+    { x: 8, sell: 20 },
+  ],
+  trailingStopPct: 35,           // actief na eerste take-profit
+  stallSec: 240,                 // na zoveel sec nog geen +10% → eruit
+  stallMinGainPct: 10,
+  maxHoldMin: 30,
+  staleSec: 120,                 // geen trades meer → eruit
+  devSellExitPct: 20,            // dev verkoopt ≥ dit % van zijn tokens → direct eruit
+  whaleDumpPct: 3,               // één wallet dumpt ≥ dit % van supply → eruit
+
+  // ── REPORTER ──────────────────────────────────────────────
+  recapHour: 7,                  // dagelijkse samenvatting (lokale tijd)
+  telegramTradeAlerts: true,
+
+  // ── Dashboard ─────────────────────────────────────────────
+  port: 8787,
+  host: '127.0.0.1',
+};
+
+// Laad .env (zonder extra dependency)
+function loadEnv(file) {
+  if (!fs.existsSync(file)) return;
+  for (const line of fs.readFileSync(file, 'utf8').split('\n')) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+    if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
+  }
+}
+
+export function loadConfig({ demo = false, root = PROJECT } = {}) {
+  loadEnv(path.join(root, '.env'));
+  let user = {};
+  const userFile = path.join(root, 'config.json');
+  if (fs.existsSync(userFile)) user = JSON.parse(fs.readFileSync(userFile, 'utf8'));
+  const cfg = { ...defaults, ...user };
+  cfg.demo = demo;
+  const baseData = process.env.DATA_DIR || root;
+  cfg.dataDir = process.env.DATA_DIR ? path.join(baseData, demo ? 'demo' : 'live') : path.join(root, demo ? 'data-demo' : 'data');
+  cfg.port = Number(process.env.PORT || cfg.port);
+  cfg.hosted = Boolean(process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_ENVIRONMENT || process.env.HOSTED);
+  cfg.host = process.env.HOST || (cfg.hosted ? '0.0.0.0' : cfg.host);
+  cfg.dashboardPassword = process.env.DASHBOARD_PASSWORD || '';
+  cfg.telegramToken = process.env.TELEGRAM_BOT_TOKEN || '';
+  cfg.telegramChatId = process.env.TELEGRAM_CHAT_ID || '';
+  if (process.env.COPY_WALLETS) cfg.copyWallets = process.env.COPY_WALLETS.split(',').map(s => s.trim()).filter(Boolean);
+  if (process.env.FEED_URL) cfg.feedUrl = process.env.FEED_URL;
+  if (process.env.START_BALANCE_SOL) cfg.startBalanceSol = Number(process.env.START_BALANCE_SOL);
+  return cfg;
+}
