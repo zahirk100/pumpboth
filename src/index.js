@@ -47,14 +47,16 @@ const shutdown = () => {
 };
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
-// Waakhond: komt er 10 minuten lang geen enkele nieuwe token binnen, dan is er iets
-// structureel mis met de feed. Stoppen → Railway (of pm2) start de bot schoon opnieuw.
+// Waakhond: is de verbinding OPEN maar komt er 10 minuten geen enkele nieuwe token binnen,
+// dan hangt er iets → stoppen zodat Railway (of pm2) schoon herstart.
+// Kan PumpPortal niet bereikt worden (storing, 502)? Dan NIET stoppen: de feed blijft zelf
+// opnieuw verbinden, en herstarten helpt dan niets.
 if (!demo) {
   const bootAt = Date.now();
   setInterval(() => {
-    const f = feed.stats, last = Math.max(f.lastCreateAt, bootAt);
-    if (Date.now() - last > 10 * 60_000) {
-      reporter.log('fail', 'Al 10 minuten geen nieuwe tokens van de feed — herstarten');
+    const f = feed.stats, last = Math.max(f.lastCreateAt, f.connectedAt, bootAt);
+    if (feed.connected && Date.now() - last > 10 * 60_000) {
+      reporter.log('fail', 'Verbonden, maar al 10 minuten geen nieuwe tokens — herstarten');
       engine.stop();
       setTimeout(() => process.exit(1), 500);
     }

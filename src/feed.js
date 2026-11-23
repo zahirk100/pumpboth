@@ -143,7 +143,13 @@ export class Feed extends EventEmitter {
       this.emit(ev.kind, ev);
     });
     ws.on('close', () => this.#onDown());
-    ws.on('error', err => { this.log('feed', `Websocket-fout: ${err.message}`); });
+    ws.on('error', err => {
+      const now = Date.now();
+      if (err.message !== this.lastErr || now - (this.lastErrAt || 0) > 10 * 60_000) {
+        this.log('feed', `Websocket-fout: ${err.message}${/50[234]/.test(err.message) ? ' (storing bij PumpPortal — blijft opnieuw proberen)' : ''}`);
+        this.lastErr = err.message; this.lastErrAt = now;
+      }
+    });
   }
 
   #onDown() {
