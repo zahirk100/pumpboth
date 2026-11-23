@@ -12,6 +12,7 @@ import { Engine } from './engine.js';
 import { startServer } from './server.js';
 import { Research } from './research.js';
 import { WalletTracker } from './wallets.js';
+import { LongResearch } from './research-long.js';
 
 const demo = process.argv.includes('--demo');
 const cfg = loadConfig({ demo });
@@ -46,10 +47,12 @@ engine.start();
 // Onderzoek + slimme wallets draaien op de volledige marktstroom (alleen PumpAPI levert die)
 const research = new Research(cfg, { registry: engine.registry });
 const wallets = new WalletTracker(cfg);
+const longResearch = new LongResearch(cfg);
+engine.longResearch = longResearch;
 engine.research = research;
 engine.wallets = wallets;
-feed.on('raw', ev => { try { research.onRaw(ev); wallets.onRaw(ev); } catch (e) { reporter.log('fail', `Onderzoek: ${e.message}`); } });
-setInterval(() => { try { research.tick(); } catch (e) { reporter.log('fail', `Onderzoek: ${e.message}`); } }, 2000);
+feed.on('raw', ev => { try { research.onRaw(ev); wallets.onRaw(ev); longResearch.onRaw(ev); } catch (e) { reporter.log('fail', `Onderzoek: ${e.message}`); } });
+setInterval(() => { try { research.tick(); longResearch.tick(); } catch (e) { reporter.log('fail', `Onderzoek: ${e.message}`); } }, 2000);
 const refreshSmart = () => {
   wallets.tick();
   engine.setSmartWallets(wallets.top);

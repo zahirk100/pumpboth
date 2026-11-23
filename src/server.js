@@ -75,10 +75,11 @@ export function startServer(engine, cfg) {
       res.writeHead(200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': 'attachment; filename="nightdesk-trades.csv"' });
       return res.end(toCsv(engine.allClosed()));
     }
-    if (req.method === 'GET' && url.pathname === '/api/research.csv') {
-      const file = path.join(cfg.dataDir, 'research.jsonl');
+    if (req.method === 'GET' && (url.pathname === '/api/research.csv' || url.pathname === '/api/research-long.csv')) {
+      const long = url.pathname.includes('long');
+      const file = path.join(cfg.dataDir, long ? 'research-long.jsonl' : 'research.jsonl');
       if (!fs.existsSync(file)) return json(res, 404, { error: 'nog geen onderzoeksdata' });
-      res.writeHead(200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': 'attachment; filename="nightdesk-onderzoek.csv"' });
+      res.writeHead(200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': `attachment; filename="nightdesk-${long ? 'lange-termijn' : 'onderzoek'}.csv"` });
       const rl = readline.createInterface({ input: fs.createReadStream(file) });
       let cols = null;
       rl.on('line', line => {

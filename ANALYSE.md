@@ -40,3 +40,12 @@ Daarom worden nu drie varianten naast elkaar getest:
 | Smart · alleen de beste | alleen wallets met 15+ rondes, 60 %+ winst en ≥ 90 s houdtijd |
 
 De steekproef is klein. Over Smart money valt pas iets te zeggen na enkele honderden trades.
+
+## 4. Volgende onderzoek: lange termijn (vanaf 23-11 21:30)
+
+Gemeten worden tokens die op PumpSwap handelen (gemigreerd), of die langer dan 15 minuten actief zijn op de curve.
+
+- Elke 5 minuten een meting per actieve token (minimaal 2 SOL volume in 15 min).
+- Kenmerken: rendement en volume over 5, 15 en 60 min, koop/verkoop-ratio, aantal kopers, liquiditeit, afstand tot de top en de bodem van het afgelopen uur, en tijd sinds migratie.
+- Uitkomst na 60 min: eerst +20 % vóór −10 %, en eerst +50 % vóór −25 %. Bij toeval is de kans op "eerst omhoog" in beide gevallen 33 %.
+- Een voorsprong bestaat alleen als een groep metingen daar aantoonbaar boven zit, ook op data die het model niet eerder zag.

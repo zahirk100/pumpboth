@@ -99,3 +99,28 @@ test('engine: Smart money kopieert koop en verkoop van een slimme wallet', async
   assert.ok(smart.portfolio.closed[0].features.buyers >= 1);
   engine.stop();
 });
+
+test('lange termijn: PumpSwap-token krijgt momentopname elke 5 min en een uitkomst na 60 min', async () => {
+  const { LongResearch } = await import('../src/research-long.js');
+  const cfg = { ...defaults, dataDir: tmp() };
+  let now = 10_000_000;
+  const L = new LongResearch(cfg, { now: () => now });
+  const mint = rid() + 'pump';
+  const amm = (side, sol, vSol, vTok, t) => ({ kind: 'trade', mint, trader: rid(), side, solAmount: sol, tokenAmount: 1e6, ts: t, vSol, vTokens: vTok, mcapSol: vSol / vTok * 1e9, pool: 'pump-amm' });
+  L.onRaw({ kind: 'migration', mint, ts: now });
+  // 15 min handel, rustig stijgend
+  for (let i = 0; i < 90; i++) L.onRaw(amm(i % 3 ? 'buy' : 'sell', 0.5, 80 + i * 0.05, 2e8, now + i * 10_000));
+  now += 900_000; L.tick(now);
+  assert.equal(L.summary().pending, 1, 'eerste momentopname');
+  const snap = [...L.tokens.values()][0].snaps[0];
+  assert.equal(snap.f.pool, 'pump-amm');
+  assert.ok(snap.f.vol15 > 2 && snap.f.ret15 > 0 && snap.f.sinceMigrationMin >= 14);
+  // prijs +25% → first20 = up, daarna rustig
+  L.onRaw(amm('buy', 5, 110, 2e8, now + 60_000));
+  now += 61 * 60_000; L.onRaw(amm('sell', 0.5, 100, 2e8, now - 1000)); L.tick(now);
+  await new Promise(r => setTimeout(r, 100));
+  const rows = fs.readFileSync(path.join(cfg.dataDir, 'research-long.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
+  assert.equal(rows[0].first20, 'up');
+  assert.equal(rows[0].first50, 'none');
+  assert.ok(rows[0].x60m > 1);
+});

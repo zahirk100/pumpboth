@@ -105,7 +105,9 @@ export class FirehoseFeed extends EventEmitter {
 
     // pump-amm "create" = de pool die bij migratie wordt aangemaakt
     if (action === 'create' && pool === 'pump-amm') {
-      if (m.mint && this.tokens.has(m.mint)) this.emit('migration', { kind: 'migration', mint: m.mint, signature: m.signature || '', pool, ts: Date.now() });
+      const mig = { kind: 'migration', mint: m.mint, signature: m.signature || '', pool, ts: Date.now() };
+      if (m.mint) this.emit('raw', mig);
+      if (m.mint && this.tokens.has(m.mint)) this.emit('migration', mig);
       return;
     }
     if (action !== 'create' && action !== 'buy' && action !== 'sell') return;

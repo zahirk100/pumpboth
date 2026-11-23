@@ -174,7 +174,11 @@
           <a href="/api/research.csv"><button>⬇ Onderzoeksdata (CSV)</button></a>
           <a href="/api/trades.csv"><button>⬇ Alle trades (CSV)</button></a>
         </div>
-        <div class="empty" style="text-align:left;padding:10px 0 0">Per token een meting op 30s, 1, 2 en 5 min. Daarna 10 min volgen: raakt hij eerst +30% of eerst −20%?</div>
+        <div class="empty" style="text-align:left;padding:10px 0 0;white-space:normal">Per nieuwe token een meting op 30s, 1, 2 en 5 min. Daarna 10 min volgen: raakt hij eerst +30% of eerst −20%? (toeval = 40%)</div>
+        <div class="label" style="margin-top:16px">Lange termijn · PumpSwap &amp; tokens 15m+</div>
+        <div class="kpis" id="lkpis"></div>
+        <div style="margin-top:12px"><a href="/api/research-long.csv"><button>⬇ Lange-termijn data (CSV)</button></a></div>
+        <div class="empty" style="text-align:left;padding:10px 0 0;white-space:normal">Elke 5 min een meting per actieve token, 60 min volgen. Eerst +20% vóór −10%, en +50% vóór −25% (toeval = 33%).</div>
       </div>
       <div class="card">
         <div class="label">Slimme wallets <span class="sub" id="wsub"></span></div>
@@ -412,6 +416,11 @@ function render(s) {
     ['TOKENS GEZIEN', R.tokens.toLocaleString('nl-NL')], ['NU GEVOLGD', R.tracking], ['METINGEN KLAAR', R.finished.toLocaleString('nl-NL')],
     ['EERST +30%', R.finished ? (R.upRate * 100).toFixed(1) + '%' : '—'], ['EERST −20%', R.finished ? (R.down / R.finished * 100).toFixed(1) + '%' : '—'], ['MOMENTOPNAMES', R.snapshots.toLocaleString('nl-NL')],
   ].map(([a, b]) => `<div class="kpi"><div>${a}</div><div>${b}</div></div>`).join('') : '<div class="empty">alleen actief met PumpAPI</div>';
+  const L = s.longResearch, pct = v => v === null || v === undefined ? '—' : (v * 100).toFixed(1) + '%';
+  $('lkpis').innerHTML = L ? [
+    ['GEVOLGD', L.tracking.toLocaleString('nl-NL')], ['OP PUMPSWAP', L.amm.toLocaleString('nl-NL')], ['METINGEN LOPEND', L.pending.toLocaleString('nl-NL')],
+    ['METINGEN KLAAR', L.finished.toLocaleString('nl-NL')], ['+20% EERST', pct(L.upShare20)], ['+50% EERST', pct(L.upShare50)],
+  ].map(([a, b]) => `<div class="kpi"><div>${a}</div><div>${b}</div></div>`).join('') : '';
   // slimme wallets
   const W = s.wallets;
   $('wsub').textContent = W ? `${W.tracked.toLocaleString('nl-NL')} wallets gevolgd · ${W.smart} slim` : '';

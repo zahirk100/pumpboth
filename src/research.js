@@ -25,6 +25,7 @@ export class Research {
     this.file = path.join(cfg.dataDir, 'research.jsonl');
     this.stats = { tokens: 0, snapshots: 0, finished: 0, up: 0, down: 0 };
     this.maxTokens = cfg.researchMaxTokens || 1500;
+    this.buf = [];               // regels bundelen: één schrijfactie per tick
     fs.mkdirSync(cfg.dataDir, { recursive: true });
     try {
       const n = fs.readFileSync(this.file, 'utf8').split('\n').filter(Boolean);
@@ -98,6 +99,13 @@ export class Research {
       const last = Math.max(...CHECKPOINTS);
       if (age > last + HORIZON / 1000 + 30 || (age > 120 && e.t.trades.length < 3 && e.snaps.every(s => s.done))) this.tokens.delete(mint);
     }
+    this.flush();
+  }
+
+  flush() {
+    if (!this.buf.length) return;
+    fs.appendFile(this.file, this.buf.join(''), () => {});
+    this.buf = [];
   }
 
   #write(mint, e, s) {
@@ -108,7 +116,7 @@ export class Research {
     };
     this.stats.finished++;
     if (rec.first === 'up') this.stats.up++; else if (rec.first === 'down') this.stats.down++;
-    fs.appendFile(this.file, JSON.stringify(rec) + '\n', () => {});
+    this.buf.push(JSON.stringify(rec) + '\n');
   }
 
   summary() {

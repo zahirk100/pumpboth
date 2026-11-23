@@ -488,6 +488,7 @@ export class Engine extends EventEmitter {
       now, demo: this.cfg.demo, startedAt: P.startedAt,
       feed: { ...this.feed.stats, subscribed: this.feed.tokens.size },
       research: this.research?.summary() || null,
+      longResearch: this.longResearch?.summary() || null,
       wallets: this.wallets ? { ...this.wallets.summary(), top: this.wallets.top.slice(0, 10).map(w => ({ ...w, copied: this.copySet.has(w.addr) })) } : null,
       solUsd: this.sol.usd, solLive: this.sol.live, feedUp: this.feed.connected,
       selected: s.id, selectedName: s.name, strategies,
