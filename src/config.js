@@ -114,6 +114,10 @@ export const defaults = {
       overrides: { minAgeSec: 8, minUniqueBuyers: 6, minTrades: 8, minNetInflowSol: 0.5, minBuySellRatio: 1.2, minMcapSol: 30, maxTop10Pct: 45,
         takeProfits: [{ x: 1.25, sell: 60 }, { x: 1.6, sell: 40 }], stopLossPct: 10, trailingStopPct: 12,
         stallSec: 45, stallMinGainPct: 5, maxHoldMin: 4, maxOpenPositions: 5, riskPerTradePct: 6 } },
+    { id: 'turbo', name: 'Turbo', desc: 'Maximaal veel trades: na seconden in, +15% pakken, binnen 90s eruit',
+      overrides: { minAgeSec: 4, minUniqueBuyers: 4, minTrades: 5, minNetInflowSol: 0.3, minBuySellRatio: 1.1, minMcapSol: 29, maxTop10Pct: 50, maxDrawFromPeakPct: 35,
+        takeProfits: [{ x: 1.15, sell: 70 }, { x: 1.35, sell: 30 }], stopLossPct: 8, trailingStopPct: 10,
+        stallSec: 30, stallMinGainPct: 4, maxHoldMin: 1.5, maxOpenPositions: 8, riskPerTradePct: 5, lossStreakPause: 8, lossStreakCooldownMin: 10 } },
   ],
 
   // ── Dashboard ─────────────────────────────────────────────
