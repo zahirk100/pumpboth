@@ -33,6 +33,14 @@ export const STRATEGIES = [
     series: (cs, btc) => { const m = btcRegime(btc, 50), e = emaCross(cs, 10, 30);
       return e.map(x => { const r = m.get(x.t); if (x.on === null || !r) return { t: x.t, on: null };
         return { t: x.t, on: x.on && r.on, v: Math.min(x.v, r.v), info: `${x.info} · BTC ${r.on ? 'boven' : 'onder'} gem.` }; }); } },
+  { id: 'snel', name: 'Snelle bot · uitbraak 1u', interval: '1h', experimental: true, histDays: 400,
+    exits: { tpPct: 3, slPct: 1.5, maxHoldH: 48 },
+    desc: 'Experiment: koopt zodra een coin boven zijn hoogste koers van de afgelopen 24 uur uitbreekt (in een stijgende trend). Verkoopt bij +3% winst, −1,5% verlies of na 48 uur. Meerdere trades per dag.',
+    series: (cs) => { const c = cs.map(k => k.c), m = sma(c, 200);
+      return cs.map((k, i) => { if (i < 200 || m[i] === null) return { t: k.t, on: null };
+        let hi = -Infinity; for (let j = i - 24; j < i; j++) hi = Math.max(hi, cs[j].h);
+        const on = k.c > hi && k.c > m[i];
+        return { t: k.t, on, v: pct(k.c, hi), info: on ? `uitbraak: ${pct(k.c, hi).toFixed(1)}% boven 24u-hoog` : `${pct(k.c, hi).toFixed(1)}% t.o.v. 24u-hoog${k.c > m[i] ? '' : ' · trend omlaag'}` }; }); } },
   { id: 'ema4h', name: 'EMA 20/60 · 4 uur', interval: '4h', experimental: true,
     desc: 'Experiment: sneller, kijkt elke 4 uur. Meer trades, maar in de backtest niet beter dan vasthouden.',
     series: (cs) => emaCross(cs, 20, 60) },

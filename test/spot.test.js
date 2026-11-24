@@ -6,6 +6,9 @@ import path from 'node:path';
 import { SpotDesk } from '../src/spot/desk.js';
 import { Book } from '../src/spot/sim.js';
 import { ema, sma } from '../src/spot/indicators.js';
+import { STRATEGIES } from '../src/spot/strategies.js';
+import { backtest } from '../src/spot/backtest.js';
+const STRATS = STRATEGIES.filter(s => s.interval !== '1h');
 
 const DAY = 86400e3;
 // Nep-Bitvavo: per coin een koers die eerst daalt en dan stijgt
@@ -43,7 +46,7 @@ test('boekhouding: kosten en minimum order', () => {
 test('Spot Desk: draait backtest, opent posities, slaat op en laadt terug', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'spot-'));
   const nowRef = { t: Date.UTC(2026, 10, 24, 9) };
-  const mk = () => new SpotDesk({ dataDir: dir, spotStartEur: 100 }, { fetchFn: fakeMarket(nowRef), now: () => nowRef.t, coins: ['BTC', 'ETH', 'SOL'] });
+  const mk = () => new SpotDesk({ dataDir: dir, spotStartEur: 100 }, { fetchFn: fakeMarket(nowRef), now: () => nowRef.t, coins: ['BTC', 'ETH', 'SOL'], strategies: STRATS });
   const d = mk();
   await d.init();
   const s = d.snapshot();
@@ -61,4 +64,15 @@ test('Spot Desk: draait backtest, opent posities, slaat op en laadt terug', asyn
   assert.equal(Object.keys(d2.books.hold.pos).length, 3, 'posities blijven na herstart');
   await d2.reset();
   assert.equal(d2.events.at(-1)?.kind === 'koop' || d2.events.some(e => e.text.includes('opnieuw')), true);
+});
+
+test('snelle bot: winst, stop en tijd als uitstap', () => {
+  const s = STRATEGIES.find(x => x.id === 'snel');
+  const H = 3600e3, cs = [];
+  for (let i = 0; i < 260; i++) cs.push({ t: i * H, o: 100 + i * .01, h: 100.2 + i * .01, l: 99.9 + i * .01, c: 100.1 + i * .01 });
+  cs[230] = { ...cs[230], c: 110, h: 110 };                 // uitbraak → instap op open van 231
+  cs[231] = { ...cs[231], o: 110, h: 114, l: 109.9, c: 113 }; // +3% geraakt
+  const r = backtest(s, { BTC: cs }, cs, { from: 0, startEur: 100 });
+  assert.equal(r.trades, 1);
+  assert.ok(r.eq > 100, 'winsttrade na kosten nog positief');
 });

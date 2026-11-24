@@ -46,11 +46,12 @@ export class SpotDesk {
   }
   #event(kind, text, sid) { this.events.push({ at: this.now(), kind, text, sid }); if (this.events.length > 400) this.events.splice(0, 100); this.log('spot', text); }
 
+  #histFrom(iv) { const d = Math.max(0, ...this.strategies.filter(s => s.interval === iv).map(s => s.histDays || 0)); return d ? this.now() - d * 86400e3 : HIST_FROM; }
   intervals() { return [...new Set(this.strategies.map(s => s.interval))]; }
 
   async init() {
     for (const iv of this.intervals()) this.market.loadCache(iv);
-    for (const iv of this.intervals()) { await this.market.refreshCandles(iv, HIST_FROM); this.market.saveCache(iv); }
+    for (const iv of this.intervals()) { await this.market.refreshCandles(iv, this.#histFrom(iv)); this.market.saveCache(iv); }
     await this.market.refreshPrices();
     this.runBacktests();
     this.ready = true;
@@ -62,7 +63,8 @@ export class SpotDesk {
       const cs = Object.fromEntries(this.coins.map(c => [c, this.market.get(c, s.interval)]).filter(([, k]) => k.length));
       if (!cs.BTC) continue;
       const btc = this.market.get('BTC', '1d');
-      const full = backtest(s, cs, btc, { from: BT_FROM, startEur: this.startEur });
+      const from = s.histDays ? this.now() - (s.histDays - 35) * 86400e3 : BT_FROM;
+      const full = backtest(s, cs, btc, { from, startEur: this.startEur });
       const yr = backtest(s, cs, btc, { from: this.now() - 365 * 86400e3, startEur: this.startEur });
       // grafiek: maximaal ~400 punten
       const step = Math.max(1, Math.ceil(full.curve.length / 400));
@@ -73,8 +75,9 @@ export class SpotDesk {
 
   // Elke paar minuten: candles bijwerken, prijzen ophalen, nieuwe signalen uitvoeren.
   async step() {
-    for (const iv of this.intervals()) await this.market.refreshCandles(iv, HIST_FROM);
+    for (const iv of this.intervals()) await this.market.refreshCandles(iv, this.#histFrom(iv));
     await this.market.refreshPrices();
+    this.checkExits();
     const priceOf = c => this.market.price(c);
     const at = this.now();
     for (const s of this.strategies) {
@@ -91,7 +94,7 @@ export class SpotDesk {
         plan.push([c, last]);
       }
       // eerst verkopen (maakt geld vrij), dan kopen
-      for (const [c, x] of plan) if (!x.on && book.pos[c]) { const t = book.sell(c, priceOf(c), at, x.info); if (t) this.#event('verkoop', `${s.name}: ${c} verkocht ${t.pnl >= 0 ? '+' : ''}€${t.pnl.toFixed(2)} (${t.pnlPct.toFixed(1)}%) — ${x.info}`, s.id); }
+      for (const [c, x] of plan) if (!s.exits && !x.on && book.pos[c]) { const t = book.sell(c, priceOf(c), at, x.info); if (t) this.#event('verkoop', `${s.name}: ${c} verkocht ${t.pnl >= 0 ? '+' : ''}€${t.pnl.toFixed(2)} (${t.pnlPct.toFixed(1)}%) — ${x.info}`, s.id); }
       for (const [c, x] of plan) if (x.on && !book.pos[c]) { const f = book.buy(c, priceOf(c), at, priceOf, x.info); if (f) this.#event('koop', `${s.name}: ${c} gekocht voor €${f.eur.toFixed(2)} — ${x.info}`, s.id); }
       for (const c of Object.keys(sigs)) sigs[c].held = Boolean(book.pos[c]);
       this.signals[s.id] = sigs;
@@ -106,12 +109,36 @@ export class SpotDesk {
     this.save();
   }
 
+  // Vaste uitstap (winst / stop / tijd) voor snelle strategieën: elke 30 s op de live prijs.
+  checkExits() {
+    const at = this.now(); let n = 0;
+    for (const s of this.strategies) {
+      if (!s.exits) continue;
+      const book = this.books[s.id];
+      for (const [c, p] of Object.entries(book.pos)) {
+        const px = this.market.prices.get(c); if (!(px > 0)) continue;
+        const ch = (px / p.entry - 1) * 100;
+        const why = ch >= s.exits.tpPct ? 'winst' : ch <= -s.exits.slPct ? 'stop' : at - p.at >= s.exits.maxHoldH * 3600e3 ? 'tijd' : null;
+        if (!why) continue;
+        const t = book.sell(c, px, at, why);
+        if (t) { n++; this.#event('verkoop', `${s.name}: ${c} verkocht (${why}) ${t.pnl >= 0 ? '+' : ''}€${t.pnl.toFixed(2)} (${t.pnlPct.toFixed(1)}%)`, s.id); }
+      }
+    }
+    return n;
+  }
+  async fastStep() {
+    if (!this.ready || !this.strategies.some(s => s.exits && Object.keys(this.books[s.id].pos).length)) return;
+    await this.market.refreshPrices();
+    if (this.checkExits()) this.save();
+  }
+
   start(everyMs = 5 * 60e3) {
+    this.fastTimer = setInterval(() => this.fastStep().catch(() => {}), 30e3);
     const run = async () => { try { await this.step(); } catch (e) { this.status = `fout: ${e.message}`; this.log('fail', `Spot: ${e.message}`); } };
     this.init().catch(e => { this.status = `opstarten mislukt: ${e.message}`; this.log('fail', `Spot: ${e.message}`); })
       .finally(() => { this.timer = setInterval(run, everyMs); });
   }
-  stop() { clearInterval(this.timer); try { this.save(); } catch {} }
+  stop() { clearInterval(this.timer); clearInterval(this.fastTimer); try { this.save(); } catch {} }
 
   reset() {
     for (const s of this.strategies) { this.books[s.id] = new Book(this.startEur, this.coins.length); this.lastBar[s.id] = {}; this.curves[s.id] = []; }
@@ -133,7 +160,7 @@ export class SpotDesk {
         const b = this.books[s.id], cv = this.curves[s.id];
         const live = summarize(cv.length ? cv : [{ eq: b.equity(priceOf) }], b.trades, this.startEur);
         return {
-          id: s.id, name: s.name, desc: s.desc, interval: s.interval, benchmark: !!s.benchmark, experimental: !!s.experimental,
+          id: s.id, name: s.name, exits: s.exits || null, desc: s.desc, interval: s.interval, benchmark: !!s.benchmark, experimental: !!s.experimental,
           nextCheckAt: this.nextBarAt(s.interval),
           live: { ...live, eq: b.equity(priceOf), cash: b.cash, feesPaid: b.feesPaid, curve: cv.filter((_, i, a) => a.length < 400 || i % Math.ceil(a.length / 400) === 0 || i === a.length - 1) },
           positions: Object.entries(b.pos).map(([c, p]) => { const px = priceOf(c) ?? p.entry; return { coin: c, eurIn: p.cost, value: p.qty * px, pnlPct: (px / p.entry - 1) * 100, since: p.at }; }),

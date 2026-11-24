@@ -75,7 +75,7 @@
   <p class="note" id="costs"></p>
 </div>
 <script>
-const COL = { hold:'#8a9099', ema:'#1f5fd6', btc:'#d97a06', combo:'#1f8a4c', ema4h:'#7a3ff2' };
+const COL = { hold:'#8a9099', ema:'#1f5fd6', btc:'#d97a06', combo:'#1f8a4c', ema4h:'#7a3ff2', snel:'#d6336c' };
 let S = null, sel = localStorage.getItem('spotSel') || 'combo';
 const eur = v => v == null ? '—' : '€' + v.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const pc = (v, d = 1) => v == null ? '—' : `<span class="${v >= 0 ? 'g' : 'r'}">${v >= 0 ? '+' : ''}${v.toFixed(d)}%</span>`;
@@ -110,16 +110,16 @@ function render() {
   if (!st.find(s => s.id === sel)) sel = st[0]?.id;
   chart(document.getElementById('live'), st.map(s => ({ pts: s.live.curve, col: COL[s.id], bold: s.id === sel })), S.startEur);
   chart(document.getElementById('bt'), st.filter(s => s.backtest).map(s => ({ pts: s.backtest.curve, col: COL[s.id], bold: s.id === sel })), S.startEur);
-  document.getElementById('tlive').innerHTML = st.map(s => `<tr class="click ${s.id === sel ? 'sel' : ''}" data-id="${s.id}"><td>${name(s)}</td><td>${eur(s.live.eq)}</td><td>${pc((s.live.eq / S.startEur - 1) * 100, 2)}</td><td>${s.positions.length}/10</td><td>${s.live.trades}</td><td>${s.live.winRatePct == null ? '—' : s.live.winRatePct.toFixed(0) + '%'}</td><td>${pc(s.live.maxDDPct)}</td><td class="m">${s.interval === '1d' ? 'dagelijks · ' : 'elke 4u · '}${until(s.nextCheckAt)}</td></tr>`).join('');
-  document.getElementById('tbt').innerHTML = st.map(s => { const b = s.backtest; return `<tr class="click ${s.id === sel ? 'sel' : ''}" data-id="${s.id}"><td>${name(s)}</td>${b ? `<td>${pc(b.returnPct, 0)}</td><td>${pc(b.maxDDPct, 0)}</td><td>${b.trades}</td><td>${pc(b.last12m.returnPct, 0)}</td><td>${pc(b.last12m.maxDDPct, 0)}</td>` : '<td colspan=5 class="m">wacht op koersdata…</td>'}</tr>`; }).join('');
+  document.getElementById('tlive').innerHTML = st.map(s => `<tr class="click ${s.id === sel ? 'sel' : ''}" data-id="${s.id}"><td>${name(s)}</td><td>${eur(s.live.eq)}</td><td>${pc((s.live.eq / S.startEur - 1) * 100, 2)}</td><td>${s.positions.length}/10</td><td>${s.live.trades}</td><td>${s.live.winRatePct == null ? '—' : s.live.winRatePct.toFixed(0) + '%'}</td><td>${pc(s.live.maxDDPct)}</td><td class="m">${s.interval === '1d' ? 'dagelijks · ' : s.interval === '1h' ? 'elk uur · ' : 'elke 4u · '}${until(s.nextCheckAt)}</td></tr>`).join('');
+  document.getElementById('tbt').innerHTML = st.map(s => { const b = s.backtest; return `<tr class="click ${s.id === sel ? 'sel' : ''}" data-id="${s.id}"><td>${name(s)}</td>${b ? `<td>${pc(b.returnPct, 0)}${b.from > Date.UTC(2023, 6) ? ` <span class="m">(sinds ${d0(b.from)})</span>` : ''}</td><td>${pc(b.maxDDPct, 0)}</td><td>${b.trades}</td><td>${pc(b.last12m.returnPct, 0)}</td><td>${pc(b.last12m.maxDDPct, 0)}</td>` : '<td colspan=5 class="m">wacht op koersdata…</td>'}</tr>`; }).join('');
   document.querySelectorAll('tr.click').forEach(tr => tr.onclick = () => { sel = tr.dataset.id; localStorage.setItem('spotSel', sel); render(); });
   const s = st.find(x => x.id === sel); if (!s) return;
   document.getElementById('dname').textContent = s.name;
-  document.getElementById('ddesc').textContent = s.desc;
+  document.getElementById('ddesc').textContent = s.desc + (s.exits ? ` Winst/stop wordt elke 30 seconden gecontroleerd.` : '');
   const pos = Object.fromEntries(s.positions.map(p => [p.coin, p]));
   document.getElementById('tsig').innerHTML = Object.entries(S.prices).map(([c, p]) => { const g = s.signals[c] || {}, q = pos[c];
     return `<tr><td><b>${c}</b></td><td>${px(p)}</td><td>${g.on == null ? '<span class="m">—</span>' : g.on ? '<span class="on">KOPEN</span>' : '<span class="off">UIT</span>'}</td><td class="m">${g.info || ''}</td><td>${q ? eur(q.value) : '<span class="m">euro</span>'}</td><td>${q ? pc(q.pnlPct) : ''}</td></tr>`; }).join('');
-  document.getElementById('ttr').innerHTML = s.trades.length ? s.trades.map(t => `<tr><td><b>${t.coin}</b></td><td class="m">${dt(t.openedAt)}</td><td class="m">${dt(t.closedAt)}</td><td>${eur(t.eurIn)}</td><td>${eur(t.eurOut)}</td><td>${pc(t.pnlPct)} <span class="m">(${t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(2)})</span></td></tr>`).join('') : '<tr><td colspan=6 class="m">nog geen afgesloten trades — deze strategieën houden posities dagen tot weken vast</td></tr>';
+  document.getElementById('ttr').innerHTML = s.trades.length ? s.trades.map(t => `<tr><td><b>${t.coin}</b></td><td class="m">${dt(t.openedAt)}</td><td class="m">${dt(t.closedAt)}</td><td>${eur(t.eurIn)}</td><td>${eur(t.eurOut)}</td><td>${pc(t.pnlPct)} <span class="m">(${t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(2)}${t.why && t.why.length < 8 ? ' · ' + t.why : ''})</span></td></tr>`).join('') : `<tr><td colspan=6 class="m">${s.exits ? 'nog geen afgesloten trades — wacht op een uitbraak' : 'nog geen afgesloten trades — deze strategie houdt posities dagen tot weken vast'}</td></tr>`;
   document.getElementById('events').innerHTML = S.events.length ? S.events.slice(0, 25).map(e => `<div class="ev"><span>${dt(e.at)}</span><span>${e.text}</span></div>`).join('') : '<div class="ev m">nog niets gebeurd</div>';
   document.getElementById('costs').textContent = `Virtueel geld. Kosten per aan- of verkoop: ${S.costs.feePct}% Bitvavo + ${S.costs.slippagePct}% slippage, minimale order €${S.costs.minOrderEur}. Signalen tellen alleen op afgesloten candles (dag = 01:00 NL-tijd).`;
 }
