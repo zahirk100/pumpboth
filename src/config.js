@@ -11,6 +11,7 @@ const PROJECT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 export const defaults = {
   // ── Account ────────────────────────────────────────────────
+  spotStartEur: 100,            // Spot Desk: virtueel startbedrag per strategie (grote coins, Bitvavo)
   startBalanceSol: 1.3,          // virtueel startkapitaal (≈ $100, gelijk aan het geplande echte budget)
 
   // ── Databronnen ───────────────────────────────────────────
@@ -166,6 +167,8 @@ export function loadConfig({ demo = false, root = PROJECT } = {}) {
   cfg.feedApiKey = process.env.PUMPPORTAL_API_KEY || '';
   if (cfg.feedApiKey && !demo) cfg.feedUrl += (cfg.feedUrl.includes('?') ? '&' : '?') + 'api-key=' + encodeURIComponent(cfg.feedApiKey);
   if (process.env.MAX_TRADE_MSGS_PER_DAY) cfg.maxTradeMsgsPerDay = Number(process.env.MAX_TRADE_MSGS_PER_DAY);
+  if (process.env.SPOT_START_EUR) cfg.spotStartEur = Number(process.env.SPOT_START_EUR);
+  cfg.spotEnabled = process.env.SPOT_ENABLED ? process.env.SPOT_ENABLED !== '0' : !demo;
   if (process.env.START_BALANCE_SOL) cfg.startBalanceSol = Number(process.env.START_BALANCE_SOL);
   return cfg;
 }

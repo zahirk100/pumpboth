@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spot Desk · grote coins</title>
+<style>
+  :root { --bg:#f4f5f7; --card:#fff; --line:#e6e8ec; --ink:#14161a; --mute:#8a9099; --faint:#b8bdc5;
+    --green:#1f8a4c; --red:#c8283c; --blue:#1f5fd6;
+    --mono:"JetBrains Mono","SF Mono",ui-monospace,Menlo,Consolas,monospace; --sans:"Inter",-apple-system,"Segoe UI",system-ui,sans-serif; }
+  * { box-sizing:border-box; } html,body { overflow-x:hidden; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); }
+  .wrap { max-width:1100px; margin:0 auto; padding:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:14px 16px; margin-bottom:12px; min-width:0; }
+  .label { font:600 11px var(--mono); letter-spacing:.14em; color:#4a5059; text-transform:uppercase; margin-bottom:8px; }
+  .label .sub { color:var(--faint); font-weight:400; letter-spacing:.04em; text-transform:none; display:block; margin-top:3px; }
+  .g { color:var(--green); } .r { color:var(--red); } .m { color:var(--mute); } .mono { font-family:var(--mono); }
+  header { display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap; }
+  .logo { width:48px; height:48px; border-radius:14px; background:#111; display:grid; place-items:center; color:#fff; font-weight:800; }
+  .title { font-weight:800; font-size:22px; letter-spacing:-.02em; }
+  .status { font:12px var(--mono); color:var(--mute); }
+  nav { display:flex; gap:6px; margin-bottom:12px; }
+  nav a { font:600 13px var(--sans); padding:7px 12px; border-radius:10px; text-decoration:none; color:var(--ink); background:#fff; border:1px solid var(--line); }
+  nav a.on { background:#111; color:#fff; border-color:#111; }
+  .tbl { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table { width:100%; border-collapse:collapse; font:12.5px var(--mono); }
+  th { text-align:left; font-weight:600; color:var(--mute); font-size:11px; padding:6px 8px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  td { padding:7px 8px; border-bottom:1px solid #f0f1f4; white-space:nowrap; }
+  tr.sel td { background:#f3f6ff; } tr.click { cursor:pointer; }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+  .pill { font:700 10px var(--mono); padding:2px 6px; border-radius:6px; background:#f0f1f4; color:var(--mute); margin-left:6px; }
+  .on { color:var(--green); font-weight:700; } .off { color:var(--mute); }
+  canvas { width:100%; display:block; margin:4px 0 8px; }
+  .ev { font:12px var(--mono); padding:5px 0; border-bottom:1px solid #f0f1f4; display:flex; gap:10px; }
+  .ev span:first-child { color:var(--faint); flex:none; } .ev span:last-child { overflow-wrap:anywhere; min-width:0; }
+  .btns { display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+  button, .btn { font:600 12px var(--sans); padding:8px 12px; border-radius:10px; border:1px solid var(--line); background:#fff; cursor:pointer; color:var(--ink); text-decoration:none; }
+  .desc { font-size:13px; color:#4a5059; margin:0 0 10px; line-height:1.45; }
+  .note { font-size:11.5px; color:var(--mute); line-height:1.5; text-align:center; margin-top:8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav><a href="/">pump.fun</a><a href="/spot" class="on">Grote coins</a></nav>
+  <header>
+    <div class="logo">₿</div>
+    <div><div class="title">Spot Desk</div><div class="status" id="status">laden…</div></div>
+  </header>
+
+  <div class="card">
+    <div class="label">Paper trading · live <span class="sub" id="since"></span></div>
+    <canvas id="live" data-h="170"></canvas>
+    <div class="tbl"><table><thead><tr><th>strategie</th><th>waarde</th><th>resultaat</th><th>in coins</th><th>trades</th><th>winst%</th><th>max daling</th><th>volgende check</th></tr></thead><tbody id="tlive"></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <div class="label">Backtest · €<span id="bst"></span> vanaf 1 jan 2023 <span class="sub">zelfde regels en kosten</span></div>
+    <canvas id="bt" data-h="190"></canvas>
+    <div class="tbl"><table><thead><tr><th>strategie</th><th>sinds 2023</th><th>max daling</th><th>trades</th><th>laatste 12 mnd</th><th>daling 12 mnd</th></tr></thead><tbody id="tbt"></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <div class="label">Details · <span id="dname"></span></div>
+    <p class="desc" id="ddesc"></p>
+    <div class="tbl"><table><thead><tr><th>coin</th><th>prijs</th><th>signaal</th><th>waarom</th><th>positie</th><th>resultaat</th></tr></thead><tbody id="tsig"></tbody></table></div>
+    <div class="label" style="margin-top:14px">Afgesloten trades</div>
+    <div class="tbl"><table><thead><tr><th>coin</th><th>gekocht</th><th>verkocht</th><th>in</th><th>uit</th><th>resultaat</th></tr></thead><tbody id="ttr"></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <div class="label">Activiteit</div>
+    <div id="events"></div>
+    <div class="btns"><a class="btn" href="/api/spot/trades.csv">Trades (CSV)</a><button id="reset">Opnieuw beginnen</button></div>
+  </div>
+  <p class="note" id="costs"></p>
+</div>
+<script>
+const COL = { hold:'#8a9099', ema:'#1f5fd6', btc:'#d97a06', combo:'#1f8a4c', ema4h:'#7a3ff2' };
+let S = null, sel = localStorage.getItem('spotSel') || 'combo';
+const eur = v => v == null ? '—' : '€' + v.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const pc = (v, d = 1) => v == null ? '—' : `<span class="${v >= 0 ? 'g' : 'r'}">${v >= 0 ? '+' : ''}${v.toFixed(d)}%</span>`;
+const px = v => v == null ? '—' : '€' + v.toLocaleString('nl-NL', { maximumSignificantDigits: v < 1 ? 4 : 6 });
+const dt = t => new Date(t).toLocaleString('nl-NL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+const d0 = t => new Date(t).toLocaleDateString('nl-NL', { day: '2-digit', month: 'short', year: '2-digit' });
+function until(t) { const m = Math.max(0, Math.round((t - Date.now()) / 60000)); return m >= 60 ? `${Math.floor(m / 60)}u ${m % 60}m` : `${m}m`; }
+
+function chart(cv, series, base) {
+  const h = +cv.dataset.h, w = cv.clientWidth, r = devicePixelRatio || 1;
+  cv.width = w * r; cv.height = h * r; cv.style.height = h + 'px';
+  const g = cv.getContext('2d'); g.scale(r, r); g.clearRect(0, 0, w, h);
+  const all = series.flatMap(s => s.pts); if (all.length < 2) { g.fillStyle = '#b8bdc5'; g.font = '12px system-ui'; g.fillText('nog te weinig data — wordt elk uur bijgewerkt', 8, h / 2); return; }
+  let t0 = Math.min(...all.map(p => p.t)), t1 = Math.max(...all.map(p => p.t)), lo = Math.min(base, ...all.map(p => p.eq)), hi = Math.max(base, ...all.map(p => p.eq));
+  if (t1 === t0) t1 = t0 + 1; const pad = (hi - lo) * .08 || 1; lo -= pad; hi += pad;
+  const X = t => 38 + (t - t0) / (t1 - t0) * (w - 44), Y = v => 6 + (hi - v) / (hi - lo) * (h - 24);
+  g.strokeStyle = '#e6e8ec'; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(38, Y(base)); g.lineTo(w, Y(base)); g.stroke(); g.setLineDash([]);
+  g.fillStyle = '#8a9099'; g.font = '10px ui-monospace,monospace';
+  g.fillText('€' + Math.round(hi), 0, 14); g.fillText('€' + Math.round(lo), 0, h - 20); g.fillText(d0(t0), 38, h - 4);
+  const lbl = d0(t1); g.fillText(lbl, w - g.measureText(lbl).width, h - 4);
+  for (const s of series) { if (s.pts.length < 2) continue; g.strokeStyle = s.col; g.lineWidth = s.bold ? 2.2 : 1.4; g.beginPath(); s.pts.forEach((p, i) => i ? g.lineTo(X(p.t), Y(p.eq)) : g.moveTo(X(p.t), Y(p.eq))); g.stroke(); }
+}
+const name = s => `<span class="dot" style="background:${COL[s.id] || '#333'}"></span>${s.name}${s.benchmark ? '<span class="pill">maatstaf</span>' : ''}${s.experimental ? '<span class="pill">experiment</span>' : ''}`;
+
+function render() {
+  if (!S) return;
+  const ok = S.status === 'actief';
+  document.getElementById('status').innerHTML = `${ok ? '<span class="g">● actief</span>' : `<span class="r">● ${S.status}</span>`} · koersen ${S.priceSource || '—'} · bijgewerkt ${S.lastStep ? dt(S.lastStep) : '—'}`;
+  document.getElementById('since').textContent = S.startedAt ? `gestart ${dt(S.startedAt)} · €${S.startEur} per strategie` : '';
+  document.getElementById('bst').textContent = S.startEur;
+  const st = S.strategies;
+  if (!st.find(s => s.id === sel)) sel = st[0]?.id;
+  chart(document.getElementById('live'), st.map(s => ({ pts: s.live.curve, col: COL[s.id], bold: s.id === sel })), S.startEur);
+  chart(document.getElementById('bt'), st.filter(s => s.backtest).map(s => ({ pts: s.backtest.curve, col: COL[s.id], bold: s.id === sel })), S.startEur);
+  document.getElementById('tlive').innerHTML = st.map(s => `<tr class="click ${s.id === sel ? 'sel' : ''}" data-id="${s.id}"><td>${name(s)}</td><td>${eur(s.live.eq)}</td><td>${pc((s.live.eq / S.startEur - 1) * 100, 2)}</td><td>${s.positions.length}/10</td><td>${s.live.trades}</td><td>${s.live.winRatePct == null ? '—' : s.live.winRatePct.toFixed(0) + '%'}</td><td>${pc(s.live.maxDDPct)}</td><td class="m">${s.interval === '1d' ? 'dagelijks · ' : 'elke 4u · '}${until(s.nextCheckAt)}</td></tr>`).join('');
+  document.getElementById('tbt').innerHTML = st.map(s => { const b = s.backtest; return `<tr class="click ${s.id === sel ? 'sel' : ''}" data-id="${s.id}"><td>${name(s)}</td>${b ? `<td>${pc(b.returnPct, 0)}</td><td>${pc(b.maxDDPct, 0)}</td><td>${b.trades}</td><td>${pc(b.last12m.returnPct, 0)}</td><td>${pc(b.last12m.maxDDPct, 0)}</td>` : '<td colspan=5 class="m">wacht op koersdata…</td>'}</tr>`; }).join('');
+  document.querySelectorAll('tr.click').forEach(tr => tr.onclick = () => { sel = tr.dataset.id; localStorage.setItem('spotSel', sel); render(); });
+  const s = st.find(x => x.id === sel); if (!s) return;
+  document.getElementById('dname').textContent = s.name;
+  document.getElementById('ddesc').textContent = s.desc;
+  const pos = Object.fromEntries(s.positions.map(p => [p.coin, p]));
+  document.getElementById('tsig').innerHTML = Object.entries(S.prices).map(([c, p]) => { const g = s.signals[c] || {}, q = pos[c];
+    return `<tr><td><b>${c}</b></td><td>${px(p)}</td><td>${g.on == null ? '<span class="m">—</span>' : g.on ? '<span class="on">KOPEN</span>' : '<span class="off">UIT</span>'}</td><td class="m">${g.info || ''}</td><td>${q ? eur(q.value) : '<span class="m">euro</span>'}</td><td>${q ? pc(q.pnlPct) : ''}</td></tr>`; }).join('');
+  document.getElementById('ttr').innerHTML = s.trades.length ? s.trades.map(t => `<tr><td><b>${t.coin}</b></td><td class="m">${dt(t.openedAt)}</td><td class="m">${dt(t.closedAt)}</td><td>${eur(t.eurIn)}</td><td>${eur(t.eurOut)}</td><td>${pc(t.pnlPct)} <span class="m">(${t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(2)})</span></td></tr>`).join('') : '<tr><td colspan=6 class="m">nog geen afgesloten trades — deze strategieën houden posities dagen tot weken vast</td></tr>';
+  document.getElementById('events').innerHTML = S.events.length ? S.events.slice(0, 25).map(e => `<div class="ev"><span>${dt(e.at)}</span><span>${e.text}</span></div>`).join('') : '<div class="ev m">nog niets gebeurd</div>';
+  document.getElementById('costs').textContent = `Virtueel geld. Kosten per aan- of verkoop: ${S.costs.feePct}% Bitvavo + ${S.costs.slippagePct}% slippage, minimale order €${S.costs.minOrderEur}. Signalen tellen alleen op afgesloten candles (dag = 01:00 NL-tijd).`;
+}
+async function load() { try { const r = await fetch('/api/spot', { cache: 'no-store' }); S = await r.json(); if (S.error) { document.getElementById('status').textContent = S.error; return; } render(); } catch (e) { document.getElementById('status').textContent = 'geen verbinding'; } }
+document.getElementById('reset').onclick = async () => { if (!confirm('Alle Spot-portemonnees opnieuw beginnen met het startbedrag?')) return; await fetch('/api/spot/reset', { method: 'POST' }); setTimeout(load, 3000); };
+addEventListener('resize', render);
+load(); setInterval(load, 15000);
+</script>
+</body>
+</html>

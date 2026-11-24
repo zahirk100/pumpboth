@@ -13,6 +13,7 @@ import { startServer } from './server.js';
 import { Research } from './research.js';
 import { WalletTracker } from './wallets.js';
 import { LongResearch } from './research-long.js';
+import { SpotDesk } from './spot/desk.js';
 
 const demo = process.argv.includes('--demo');
 const cfg = loadConfig({ demo });
@@ -62,6 +63,10 @@ setInterval(refreshSmart, 60_000);
 setInterval(() => wallets.save(), 10 * 60_000);
 if (!demo && cfg.feedMode === 'pumpportal' && !cfg.feedApiKey) reporter.log('guard', 'Geen PUMPPORTAL_API_KEY ingesteld — PumpPortal stuurt dan geen trades, alleen nieuwe tokens. Zie README.');
 if (!demo && cfg.feedMode !== 'pumpportal') reporter.log('info', `Databron: PumpAPI (gratis)${cfg.feedApiKey && cfg.feedMode !== 'pumpapi' ? ' · reserve: PumpPortal' : ' · geen reserve (geen PumpPortal-key)'}`);
+// Spot Desk: grote coins (BTC, ETH, …) met echte Bitvavo-koersen, los van pump.fun
+const spot = cfg.spotEnabled ? new SpotDesk(cfg, { log: (k, t) => reporter.log(k === 'spot' ? 'info' : k, `[Spot] ${t}`) }) : null;
+spot?.start();
+engine.spot = spot;
 const server = startServer(engine, cfg);
 server.on('error', e => {
   console.error(`Dashboard kon niet starten op poort ${cfg.port}: ${e.message}. Zet een andere PORT in .env`);
@@ -72,6 +77,7 @@ const shutdown = () => {
   console.log('\nAfsluiten — staat opslaan…');
   engine.stop();
   wallets.save();
+  spot?.stop();
   solPrice.stop();
   server.close();
   mock?.close();

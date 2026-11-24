@@ -90,6 +90,18 @@ export function startServer(engine, cfg) {
       rl.on('close', () => res.end());
       return;
     }
+    if (req.method === 'GET' && url.pathname === '/spot') {
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+      return res.end(fs.readFileSync(path.join(ROOT, 'spot.html')));
+    }
+    if (req.method === 'GET' && url.pathname === '/api/spot') {
+      if (!engine.spot) return json(res, 503, { error: 'Spot Desk staat uit (SPOT_ENABLED=0)' });
+      return json(res, 200, engine.spot.snapshot());
+    }
+    if (req.method === 'GET' && url.pathname === '/api/spot/trades.csv') {
+      res.writeHead(200, { 'content-type': 'text/csv; charset=utf-8', 'content-disposition': 'attachment; filename="spot-trades.csv"' });
+      return res.end(toCsv(engine.spot?.tradesCsvRows() || []));
+    }
     if (req.method === 'GET' && url.pathname === '/api/wallets') {
       return json(res, 200, { summary: engine.wallets?.summary(), top: engine.wallets?.rank(50) || [] });
     }
@@ -108,6 +120,7 @@ export function startServer(engine, cfg) {
       if (origin && new URL(origin).host !== req.headers.host) return json(res, 403, { error: 'forbidden' });
       if (url.pathname === '/api/pause') { engine.setPaused(true); return json(res, 200, { ok: true }); }
       if (url.pathname === '/api/resume') { engine.setPaused(false); return json(res, 200, { ok: true }); }
+      if (url.pathname === '/api/spot/reset' && engine.spot) { engine.spot.reset().catch(() => {}); return json(res, 200, { ok: true }); }
       if (url.pathname === '/api/reset') { engine.resetAccount(); return json(res, 200, { ok: true }); }
     }
     json(res, 404, { error: 'not found' });

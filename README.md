@@ -158,3 +158,12 @@ ssh -L 8787:127.0.0.1:8787 gebruiker@jouw-server
 Dat zit er bewust **niet** in. Als de cijfers na weken overtuigen, is de executor de enige plek die moet veranderen. Je vervangt `PaperExecutor` dan door een versie die transacties ondertekent, via de PumpPortal Local Transaction API of Jupiter, met Jito voor MEV-bescherming. Gebruik daarvoor een **aparte wallet met alleen het bedrag dat je kwijt mag raken**. Deel je seed phrase nooit en installeer geen bots van TikTok of Telegram die je key vragen.
 
 *Geen financieel advies.*
+
+## Spot Desk — grote coins (paper trading)
+
+Pagina `/spot` op het dashboard. Draait naast de pump.fun-bot, met echte koersen van Bitvavo (reserve: Binance EUR-paren).
+Vijf strategieën krijgen elk een eigen virtuele portemonnee van €100 (`SPOT_START_EUR`), verdeeld over 10 coins
+(BTC, ETH, SOL, XRP, BNB, ADA, DOGE, AVAX, LINK, DOT): Vasthouden (maatstaf), EMA 10/30, BTC-filter, EMA + BTC-filter
+en een experimentele 4-uursvariant. Kosten: 0,25% + 0,05% slippage per order, minimaal €5 per order.
+Signalen tellen alleen op afgesloten candles; elke 5 minuten wordt gecontroleerd. Uitzetten: `SPOT_ENABLED=0`.
+Data staat in `DATA_DIR/spot/`.
