@@ -116,22 +116,15 @@ export const defaults = {
   // virtueel saldo. 'overrides' overschrijft de instellingen hierboven.
   // De eerste is de hoofdstrategie (Telegram-meldingen, copy trading).
   strategies: [
-    // Controle: de oorspronkelijke momentum-aanpak, om te blijven meten.
-    { id: 'streng', name: 'Streng (controle)', desc: 'Momentum met strenge filters — referentie', copy: false },
-    // Onderzoek 23-11 (18.000 metingen, 280 trades): na élk momentum-kenmerk is de kans op
-    // eerst +30% vóór −20% 40,1% — exact wat bij toeval hoort. Momentum heeft geen voorsprong;
-    // Losser, Snelle winst, Scalper, Turbo en Laat-instapper zijn daarom gestopt.
-    // Alleen het kopiëren van wallets kwam in de buurt van break-even. Daar testen we nu op door:
-    { id: 'smart', name: 'Smart money', desc: 'Kopieert de top-10 wallets, stop −30%', copy: true, copyOnly: true,
-      overrides: { copyMinSol: 0.2, copySizeFactor: 1, maxOpenPositions: 5, stopLossPct: 30, stallSec: 900, maxHoldMin: 45, maxMcapSol: 400,
-        takeProfits: [{ x: 2, sell: 40 }, { x: 4, sell: 30 }, { x: 8, sell: 20 }], trailingStopPct: 35 } },
-    { id: 'smart_nostop', name: 'Smart · volg de wallet', desc: 'Zelfde wallets, maar verkoopt pas als de wallet verkoopt (noodstop −60%)', copy: true, copyOnly: true,
-      overrides: { copyMinSol: 0.2, copySizeFactor: 1, maxOpenPositions: 5, stopLossPct: 60, stallSec: 3600, maxHoldMin: 30, maxMcapSol: 400,
-        staleSec: 600, takeProfits: [{ x: 3, sell: 50 }], trailingStopPct: 50 } },
-    { id: 'smart_strict', name: 'Smart · alleen de beste', desc: 'Strengere wallet-eisen: 15+ rondes, 60%+ winst, houdt ≥90s vast', copy: true, copyOnly: true,
-      overrides: { copyMinSol: 0.2, copySizeFactor: 1, maxOpenPositions: 5, stopLossPct: 40, stallSec: 1800, maxHoldMin: 45, maxMcapSol: 400,
-        smartMinRounds: 15, smartMinWinRate: 0.6, smartMinHoldSec: 90, smartMinProfitSol: 1, smartCopyTop: 10,
-        takeProfits: [{ x: 2, sell: 40 }, { x: 4, sell: 30 }], trailingStopPct: 40 } },
+    // Analyse 24-11: momentum bij nieuwe tokens = toeval (40,3% vs 40,0%, 76k metingen),
+    // PumpSwap = toeval na opschonen (32% vs 33%), smart money verloor in alle 3 varianten.
+    // Alleen Streng won (+28%), maar dat kwam van 3 trades en is statistisch nog niet hard.
+    // Hypothese die we nu testen: winst zit in de zeldzame uitschieters → laat winnaars lopen.
+    { id: 'streng', name: 'Streng', desc: 'Momentum met strenge filters, winst in stappen (2×·4×·8×)', copy: false },
+    { id: 'streng_lang', name: 'Streng · laat lopen', desc: 'Zelfde instap, geen vaste winstneming: trailing −40% na 2×, tot 60 min', copy: false,
+      overrides: { takeProfits: [{ x: 2, sell: 25 }], trailingStopPct: 40, stopLossPct: 25, stallSec: 600, stallMinGainPct: 0, maxHoldMin: 60, staleSec: 300 } },
+    { id: 'streng_klein', name: 'Streng · kleine inzet', desc: 'Zelfde als Streng, maar 2% inzet en max 8 posities: meer kansen op een uitschieter', copy: false,
+      overrides: { riskPerTradePct: 2, maxOpenPositions: 8, minPositionSol: 0.02 } },
   ],
 
   // ── Dashboard ─────────────────────────────────────────────

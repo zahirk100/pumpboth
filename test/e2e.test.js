@@ -34,7 +34,7 @@ test('bot draait tegen de feed, boekhouding klopt, staat overleeft herstart', { 
   await sleep(45_000);
 
   const c = engine.c;
-  assert.equal(engine.strategies.length, 4, 'vier strategieën');
+  assert.equal(engine.strategies.length, 3, 'drie strategieën');
   assert.ok(c.newPairs > 30, `newPairs ${c.newPairs}`);
   assert.ok(c.trades > 500, `trades ${c.trades}`);
   const sum = k => engine.strategies.reduce((a, s) => a + s.c[k], 0);
@@ -56,7 +56,7 @@ test('bot draait tegen de feed, boekhouding klopt, staat overleeft herstart', { 
   for (const s of engine.strategies) {
     const snap = engine.snapshot(s.id);
     assert.equal(snap.selected, s.id);
-    assert.equal(snap.strategies.length, 4);
+    assert.equal(snap.strategies.length, 3);
     assert.ok(snap.equity > 0);
   }
 

@@ -49,3 +49,28 @@ Gemeten worden tokens die op PumpSwap handelen (gemigreerd), of die langer dan 1
 - Kenmerken: rendement en volume over 5, 15 en 60 min, koop/verkoop-ratio, aantal kopers, liquiditeit, afstand tot de top en de bodem van het afgelopen uur, en tijd sinds migratie.
 - Uitkomst na 60 min: eerst +20 % vóór −10 %, en eerst +50 % vóór −25 %. Bij toeval is de kans op "eerst omhoog" in beide gevallen 33 %.
 - Een voorsprong bestaat alleen als een groep metingen daar aantoonbaar boven zit, ook op data die het model niet eerder zag.
+
+## 5. Analyse 24-11 (een nacht data)
+
+| Onderzoek | Metingen | Kans "eerst omhoog" | Bij toeval | Conclusie |
+|---|---|---|---|---|
+| Nieuwe tokens (eerste 15 min) | 76.493 | 40,3 % | 40,0 % | toeval, bevestigd met 4× meer data |
+| PumpSwap, ruwe data | 29.167 | 43 % | 33 % | **schijnsignaal**, zie hieronder |
+| PumpSwap, opgeschoond (alleen pump-tokens met stabiele liquiditeit ≥ 20 SOL) | 15.766 | 32 % | 33 % | toeval; momentum zelfs licht negatief |
+
+**Het schijnsignaal.** In de ruwe data leek momentum op PumpSwap te werken (+6 à +7 % per trade, ook op testdata).
+Maar 22 % van de tokens had pools met wisselende liquiditeit: soms tot bijna 0. Daarnaast liepen er tokens mee die niet via pump.fun gelanceerd zijn.
+Prijzen sprongen daardoor tussen pools, met x60m tot 10 miljard.
+Na opschonen verdwijnt het effect volledig.
+
+**Smart money:** 231 trades in 3 varianten, alle drie fors verlies (−0,41 / −0,58 / −0,51 SOL).
+De stops kosten het meest, maar ook de exits via de gekopieerde wallet zijn negatief.
+Kopiëren met onze vertraging werkt niet. **Gestopt.**
+
+**Streng:** +0,37 SOL op 31 trades, maar 3 trades (4,6×, 3,1×, 3,2×) leverden alles op.
+Over beide sessies (53 trades): gemiddeld +6,9 % per trade, met een 95 %-interval van −9,7 % tot +27,5 %. De kans dat het werkelijke gemiddelde ≤ 0 is, is 25 %.
+Zonder de 3 beste trades: −8,4 % per trade.
+Nog geen bewijs. Wel een hypothese: winst zit in zeldzame uitschieters, en de exit moet die laten lopen.
+Bij Streng-achtige instappen haalt 11 % binnen 10 min ×3, tegen 8 % gemiddeld. Maar 84 % zakt eerst onder 0,75×.
+
+Nieuwe test: Streng · Streng · laat lopen · Streng · kleine inzet.

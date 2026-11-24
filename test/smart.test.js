@@ -71,7 +71,8 @@ test('onderzoek: momentopname op 30s en "eerst +30%" uitkomst', async () => {
 });
 
 test('engine: Smart money kopieert koop en verkoop van een slimme wallet', async () => {
-  const cfg = { ...defaults, dataDir: tmp(), latencyMs: 0, txFailRate: 0, demo: true };
+  const cfg = { ...defaults, dataDir: tmp(), latencyMs: 0, txFailRate: 0, demo: true,
+    strategies: [{ id: 'streng', name: 'Streng', copy: false }, { id: 'smart', name: 'Smart money', copy: true, copyOnly: true, overrides: { copyMinSol: 0.2, copySizeFactor: 1 } }] };
   const feed = new EventEmitter();
   Object.assign(feed, { stats: { tradeMsgsToday: 0 }, tokens: new Set(), connected: true, start() {}, stop() {},
     watchTokens(m) { m.forEach(x => this.tokens.add(x)); }, unwatchTokens(m) { m.forEach(x => this.tokens.delete(x)); },
